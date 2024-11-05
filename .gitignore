@@ -32,3 +32,10 @@ Pipfile.lock
 
 # 특정 디렉토리
 Downloads/
+
+# PyInstaller directories
+build/
+dist/
+
+# PyInstaller spec file
+*.spec
