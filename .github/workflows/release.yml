@@ -23,6 +23,9 @@ jobs:
           pip install pipenv
           pipenv install --dev
 
+      - name: Install pyinstaller
+        run: pipenv install pyinstaller --dev
+
       - name: Build executable
         run: |
           pipenv run pyinstaller --onefile main.py
