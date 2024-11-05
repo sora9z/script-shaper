@@ -63,6 +63,12 @@ jobs:
           draft: false
           prerelease: false
 
+      - name: Check generated files
+        run: ls -la dist/
+
+      - name: Wait for file system to stabilize
+        run: sleep 5
+
       - name: Upload to Release
         uses: actions/upload-release-asset@v1
         env:
