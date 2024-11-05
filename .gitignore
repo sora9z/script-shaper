@@ -1,0 +1,34 @@
+# Python 관련
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pdb
+
+# 환경 설정 파일
+.env
+*.env
+
+# MacOS 관련
+.DS_Store
+
+# Windows 관련
+Thumbs.db
+ehthumbs.db
+
+# PyCharm 관련
+.idea/
+
+# Jupyter Notebook 체크포인트
+.ipynb_checkpoints
+
+# Pipenv 관련
+Pipfile.lock
+
+# 기타
+*.log
+*.bak
+*.swp
+
+# 특정 디렉토리
+Downloads/
