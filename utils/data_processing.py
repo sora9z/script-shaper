@@ -1,0 +1,33 @@
+"""
+    텍스트 데이터 전처리
+    1. 화자명 제거
+    2. 지시어 제거 (괄호, 중괄호, 대괄호)
+    3. 문장 마지막에 . 추가 -> 운하 프로그램에서 .을 기준으로 문장을 구분한다.
+    """
+
+import re
+from utils.constants import SPEAKER_DIALOGUE_REGEX_LIST
+
+
+def data_processing(text_data) -> list[str]:
+    try:
+        # 화자명 제거 SPEAKER_DIALOGUE_REGEX_LIST에 해당하는 문장 제거
+        for regex in SPEAKER_DIALOGUE_REGEX_LIST:
+            text_data = re.sub(regex, "", text_data, flags=re.MULTILINE)
+
+        # 지시어 제거 (맨 앞이 괄고, 중괄호, 대괄호로 시작하는 문장 제거)
+        text_data = re.sub(
+            r"^\(\s*[^()]*\s*\)|\[\s*[^\[\]]*\s*\]|\{\s*[^{}]*\s*\}",
+            "",
+            text_data,
+            flags=re.MULTILINE,
+        )
+
+        # 문장 마지막에 . 추가
+        # text_data = re.sub(
+        #     r"([a-zA-Z0-9가-힣])(?![.,])\s*$", r"\1.", text_data, flags=re.MULTILINE
+        # )
+    except Exception as e:
+        print(f"Error in data_processing: {e}")
+        raise e
+    return text_data
