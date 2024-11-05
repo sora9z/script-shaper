@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -33,6 +35,12 @@ jobs:
         run: |
           pipenv run pyinstaller --onefile main.py
 
+      - name: Upload Build Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: script-shaper
+          path: dist/main # 업로드할 실행 파일 경로
+
       - name: Check generated files
         run: ls -la dist/ # dist 디렉토리 내 파일 확인
 
@@ -46,11 +54,20 @@ jobs:
       - name: Fetch all tags
         run: git fetch --tags
 
+      - name: Ensure HEAD points to latest commit on main
+        run: git checkout main
+
       - name: Get the latest tag or set default
         id: set_version
         run: |
           TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.1.0")
           echo "VERSION=$TAG" >> $GITHUB_ENV
+
+      - name: Download Build Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: script-shaper
+          path: . # 다운로드 위치 지정
 
       - name: Create Release
         id: create_release
@@ -63,9 +80,6 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Check generated files
-        run: ls -la dist/
-
       - name: Wait for file system to stabilize
         run: sleep 5
 
@@ -75,6 +89,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: dist/main
+          asset_path: ./main
           asset_name: script-shaper
           asset_content_type: application/octet-stream
