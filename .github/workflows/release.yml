@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest # macOS 환경에서 빌드
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -46,7 +46,7 @@ jobs:
 
   release:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: macos-latest # macOS 환경에서 릴리즈 작업
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
