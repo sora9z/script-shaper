@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+permissions:
+  contents: write # 릴리즈 생성 및 업데이트를 위해 contents 권한을 명시적으로 설정
 
 jobs:
   build:
