@@ -35,6 +35,9 @@ jobs:
         run: |
           pipenv run pyinstaller --onefile main.py
 
+      - name: Ensure executable permissions
+        run: chmod +x dist/main # 실행 권한 부여
+
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
@@ -60,7 +63,7 @@ jobs:
       - name: Get the latest tag or set default
         id: set_version
         run: |
-          TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.1")
+          TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v1.0.2")
           echo "VERSION=$TAG" >> $GITHUB_ENV
 
       - name: Download Build Artifact
