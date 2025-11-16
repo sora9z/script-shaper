@@ -15,14 +15,12 @@ def data_processing(text_data: str) -> list[str]:
         for regex in SPEAKER_DIALOGUE_REGEX_LIST:
             text_data = re.sub(regex, "", text_data, flags=re.MULTILINE)
 
-        # 지시어 제거 (맨 앞이 괄고, 중괄호, 대괄호로 시작하는 문장 제거)
+        # 지시어 제거 (괄호, 중괄호, 대괄호 제거)
         text_data = re.sub(
-            r"^\(\s*[^()]*\s*\)|\[\s*[^\[\]]*\s*\]|\{\s*[^{}]*\s*\}",
+            r"\(\s*[^()]*\s*\)|\[\s*[^\[\]]*\s*\]|\{\s*[^{}]*\s*\}",
             "",
             text_data,
-            flags=re.MULTILINE,
         )
-        print("testtest", text_data)
 
         # 문장 마지막에 . 추가
         # text_data = re.sub(

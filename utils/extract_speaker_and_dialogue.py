@@ -19,12 +19,49 @@ def extract_speaker_and_dialogue(text_list, file_path) -> list[str]:
         if file_path.endswith(".xlsx"):
             return text_list
 
+        DIALOGUE_END_PUNCTUATION = [
+            "!", "?", "…", "...", "~", ",", ";", '"'
+        ]
+
+        KOREAN_DIALOGUE_ENDINGS = [
+            "요", "죠", "네요", "군요", "구나", "구나요", "합니다", "이에요", "예요", "옵니다",
+            "드립니다", "습니까", "다", "라", "냐", "니", "네", "해", "했어", "할게", "할까",
+            "지", "자", "구먼", "구먼요", "잖아", "잖아요", "거든요", "말이야", "말입니다"
+        ]
+
         extracted_dialogues = []
         for text in text_list:
+            is_dialogue = False
+
+            # 기존 regex 패턴으로 체크
             for regex in SPEAKER_DIALOGUE_REGEX_LIST:
                 if re.match(regex, text):
                     extracted_dialogues.append(text)
+                    is_dialogue = True
                     break
+
+            # 이미 대사로 인식되었으면 스킵
+            if is_dialogue:
+                continue
+
+            # 대사 종료 문장부호로 끝나는지 체크
+            stripped_text = text.strip()
+            for punctuation in DIALOGUE_END_PUNCTUATION:
+                if stripped_text.endswith(punctuation):
+                    extracted_dialogues.append(text)
+                    is_dialogue = True
+                    break
+
+            # 이미 대사로 인식되었으면 스킵
+            if is_dialogue:
+                continue
+
+            # 한국어 대사체 어미로 끝나는지 체크
+            for ending in KOREAN_DIALOGUE_ENDINGS:
+                if stripped_text.endswith(ending):
+                    extracted_dialogues.append(text)
+                    break
+
         return extracted_dialogues
     except Exception as e:
         print(f"Error in extract_speaker_and_dialogue: {e}")
