@@ -9,7 +9,7 @@ import re
 from utils.constants import SPEAKER_DIALOGUE_REGEX_LIST
 
 
-def data_processing(text_data) -> list[str]:
+def data_processing(text_data: str) -> list[str]:
     try:
         # 화자명 제거 SPEAKER_DIALOGUE_REGEX_LIST에 해당하는 문장 제거
         for regex in SPEAKER_DIALOGUE_REGEX_LIST:
@@ -22,6 +22,7 @@ def data_processing(text_data) -> list[str]:
             text_data,
             flags=re.MULTILINE,
         )
+        print("testtest", text_data)
 
         # 문장 마지막에 . 추가
         # text_data = re.sub(

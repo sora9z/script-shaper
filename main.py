@@ -19,7 +19,7 @@ class FileSelector:
     def __init__(self, root):
         self.root = root
         self.selected_file = None
-        self.use_ai = tk.BooleanVar(value=True)
+        self.use_ai = tk.BooleanVar(value=False)
 
         # 파일 경로를 보여줄 레이블
         self.file_lable = tk.Label(root, text="선택된 파일 없음", wraplength=500)
@@ -41,7 +41,7 @@ class FileSelector:
         )
         self.select_button.pack(pady=5)
 
-        # 임포트 버틍 (처음엔 비활성화)
+        # 임포트 버튼 (처음엔 비활성화)
         self.import_button = tk.Button(
             root,
             text="파일 임포트",
@@ -63,8 +63,8 @@ class FileSelector:
         self.ai_checkbox.pack(pady=5)
 
         # 로그를 보여줄 텍스트 위젯
-        # self.log_text = tk.Text(root, height=10, width=70)
-        # self.log_text.pack(pady=10))
+        self.log_text = tk.Text(root, height=10, width=70)
+        self.log_text.pack(pady=10)
 
     def select_file(self):
         file_path = filedialog.askopenfilename(
@@ -96,7 +96,8 @@ class FileSelector:
                 text_list, self.selected_file_path
             )
             # text data processing
-            processed_data = data_processing("\n".join(speaker_and_dialogue_data))
+            processed_data = data_processing(
+                "\n".join(speaker_and_dialogue_data))
             # request to openai by parallel processing
             if self.use_ai.get():
                 converted_data = self._request_to_ai(processed_data)
@@ -118,7 +119,7 @@ class FileSelector:
         print("AI 요청 중...")
         # 긴 텍스트를 일정 크기(chunk_size)로 나누는 작업
         text_chunks = [
-            processed_data[i : i + CHUNK_SIZE]
+            processed_data[i: i + CHUNK_SIZE]
             for i in range(0, len(processed_data), CHUNK_SIZE)
         ]
 
