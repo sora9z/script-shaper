@@ -179,9 +179,13 @@ class FileSelector:
 
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    root.title("Script Shaper")
-    root.geometry("800x400")
+    try:
+        root = tk.Tk()
+        root.title("Script Shaper")
+        root.geometry("800x400")
 
-    app = FileSelector(root)
-    root.mainloop()
+        app = FileSelector(root)
+        root.mainloop()
+    except Exception as e:
+        print(f"Application error: {e}")
+        input("Press Enter to exit...")  # 오류 시 대기
