@@ -21,6 +21,11 @@ def data_processing(text_data: str) -> list[str]:
             "",
             text_data,
         )
+        
+        # 각 라인 끝에 있는 닫히지 않은 괄호들만 제거
+        text_data = re.sub(r"\([^)\n]*(?=\n|$)", "", text_data)
+        text_data = re.sub(r"\[[^\]\n]*(?=\n|$)", "", text_data)
+        text_data = re.sub(r"\{[^}\n]*(?=\n|$)", "", text_data)
 
         # 문장 마지막에 . 추가
         # text_data = re.sub(

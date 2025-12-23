@@ -23,10 +23,18 @@ def extract_speaker_and_dialogue(text_list, file_path) -> list[str]:
             "!", "?", "…", "...", "~", ",", ";", '"'
         ]
 
-        KOREAN_DIALOGUE_ENDINGS = [
+        # 한 글자 어미 
+        KOREAN_ONE_CHAR_ENDINGS = [
+            "다", "라", "냐", "니", "네", "해", "지", "자", "마", "봐", "세", "셔", 
+            "야", "여", "오", "와", "워", "게", "구"
+        ]
+        
+        # 두 글자 이상 어미 
+        KOREAN_MULTI_CHAR_ENDINGS = [
             "요", "죠", "네요", "군요", "구나", "구나요", "합니다", "이에요", "예요", "옵니다",
-            "드립니다", "습니까", "다", "라", "냐", "니", "네", "해", "했어", "할게", "할까",
-            "지", "자", "구먼", "구먼요", "잖아", "잖아요", "거든요", "말이야", "말입니다"
+            "드립니다", "습니까", "했어", "할게", "할까", "구먼", "구먼요", "잖아", "잖아요", 
+            "거든요", "말이야", "말입니다", "구들", "거든", "거야", "거예요", "걸요", "껄", 
+            "데", "덜", "든지", "려나", "세요", "쇼", "하고", "겠어", "없어", "있어", "그래어", "뭐어"
         ]
 
         extracted_dialogues = []
@@ -46,6 +54,10 @@ def extract_speaker_and_dialogue(text_list, file_path) -> list[str]:
 
             # 대사 종료 문장부호로 끝나는지 체크
             stripped_text = text.strip()
+            # 뒤에 오는 괄호, 대괄호, 중괄호 제거
+            stripped_text = re.sub(r'(\s*[\(\[\{].*?[\)\]\}])+$', '', stripped_text)
+            # 닫히지 않은 괄호들도 제거
+            stripped_text = re.sub(r'\s*[\(\[\{].*$', '', stripped_text)
             for punctuation in DIALOGUE_END_PUNCTUATION:
                 if stripped_text.endswith(punctuation):
                     extracted_dialogues.append(text)
@@ -57,8 +69,34 @@ def extract_speaker_and_dialogue(text_list, file_path) -> list[str]:
                 continue
 
             # 한국어 대사체 어미로 끝나는지 체크
-            for ending in KOREAN_DIALOGUE_ENDINGS:
-                if stripped_text.endswith(ending):
+            text_to_check = stripped_text.rstrip('.')
+            
+            # 두 글자 이상 어미 먼저 체크 (우선순위)
+            for ending in KOREAN_MULTI_CHAR_ENDINGS:
+                if text_to_check.endswith(ending):
+                    extracted_dialogues.append(text)
+                    is_dialogue = True
+                    break
+            
+            # 이미 대사로 인식되었으면 스킵
+            if is_dialogue:
+                continue
+                
+            # 한 글자 어미 체크
+            if len(text_to_check) >= 2:
+                for ending in KOREAN_ONE_CHAR_ENDINGS:
+                    if text_to_check.endswith(ending):
+                        extracted_dialogues.append(text)
+                        is_dialogue = True
+                        break
+            
+            # 이미 대사로 인식되었으면 스킵
+            if is_dialogue:
+                continue
+                
+            # 문장 어느 위치에든 두 글자 이상 구어체가 있다면 대사로 인식
+            for ending in KOREAN_MULTI_CHAR_ENDINGS:
+                if ending in text_to_check:
                     extracted_dialogues.append(text)
                     break
 
