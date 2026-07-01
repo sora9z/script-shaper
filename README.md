@@ -49,9 +49,24 @@ ScriptShaper : 자막제작자를 위한 대본 변환 프로젝트
 - 파일 임포트 : `파일 임포트` 버튼을 통해 파일 임포트
 - 저장 위치는 Downloads 폴더에 저장됩니다.
 
+## 로컬 실행 (개발/디버그)
+
+GUI 없이 파일을 변환해 결과를 확인할 수 있습니다.
+
+```bash
+pipenv install
+pipenv run python convert_cli.py "경로/대본.docx"            # 규칙 기반 추출
+pipenv run python convert_cli.py "경로/대본.docx" --ai        # AI 분류 추출
+pipenv run python convert_cli.py "경로/대본.docx" --ai --split  # AI 추출 + 20자 분할
+```
+
+AI 옵션은 `~/Downloads/settings.json` 의 `openai_api_key` 또는 `OPENAI_API_KEY` 환경변수를 사용합니다.
+
 ## 대사 인식 조건
 
 프로그램이 텍스트를 대사로 인식하는 조건들입니다:
+
+> AI 사용 시에는 아래 규칙 대신 모델이 각 줄을 대사/지문/씬헤더로 분류해 추출합니다. 아래 규칙은 AI 미사용(폴백) 시 동작입니다.
 
 ### 1. 화자명 패턴
 - `화자명: 대사` 형태 (콜론 포함)
