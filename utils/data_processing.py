@@ -9,6 +9,27 @@ import re
 from utils.constants import SPEAKER_DIALOGUE_REGEX_LIST
 
 
+def remove_inline_directions(text_data: str) -> str:
+    """괄호/대괄호/중괄호 안의 지시어(지문)를 제거한다.
+
+    - 균형 잡힌 (), [], {} 그룹 제거
+    - 각 라인 끝에 닫히지 않은 괄호는 줄 끝까지 제거
+    화자명은 건드리지 않는다(호출부에서 별도 처리).
+    """
+    # 지시어 제거 (괄호, 중괄호, 대괄호 제거)
+    text_data = re.sub(
+        r"\(\s*[^()]*\s*\)|\[\s*[^\[\]]*\s*\]|\{\s*[^{}]*\s*\}",
+        "",
+        text_data,
+    )
+
+    # 각 라인 끝에 있는 닫히지 않은 괄호들만 제거
+    text_data = re.sub(r"\([^)\n]*(?=\n|$)", "", text_data)
+    text_data = re.sub(r"\[[^\]\n]*(?=\n|$)", "", text_data)
+    text_data = re.sub(r"\{[^}\n]*(?=\n|$)", "", text_data)
+    return text_data
+
+
 def data_processing(text_data: str) -> list[str]:
     try:
         # 화자명 제거 SPEAKER_DIALOGUE_REGEX_LIST에 해당하는 문장 제거
@@ -16,16 +37,7 @@ def data_processing(text_data: str) -> list[str]:
             text_data = re.sub(regex, "", text_data, flags=re.MULTILINE)
 
         # 지시어 제거 (괄호, 중괄호, 대괄호 제거)
-        text_data = re.sub(
-            r"\(\s*[^()]*\s*\)|\[\s*[^\[\]]*\s*\]|\{\s*[^{}]*\s*\}",
-            "",
-            text_data,
-        )
-        
-        # 각 라인 끝에 있는 닫히지 않은 괄호들만 제거
-        text_data = re.sub(r"\([^)\n]*(?=\n|$)", "", text_data)
-        text_data = re.sub(r"\[[^\]\n]*(?=\n|$)", "", text_data)
-        text_data = re.sub(r"\{[^}\n]*(?=\n|$)", "", text_data)
+        text_data = remove_inline_directions(text_data)
 
         # 문장 마지막에 . 추가
         # text_data = re.sub(
