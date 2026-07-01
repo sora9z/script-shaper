@@ -52,7 +52,6 @@ def request_to_openai(api_key, content):
             },
         ],
         model="gpt-5.4",
-        temperature=0.5,
     )
 
     return response.choices[0].message.content

@@ -137,6 +137,7 @@ def extract_dialogue_ai(text_list, file_path, api_key, model=CLASSIFY_MODEL, *, 
     # 미분류 id는 기존 regex 캐스케이드로 폴백
     for i, lab in enumerate(labels):
         if lab is None:
+            # 주의: 폴백은 기존 규칙 경로라, ~다로 끝나는 지문이 다시 대사로 샐 수 있음(모델 미분류 시 한정)
             hit = extract_speaker_and_dialogue([text_list[i]], file_path)
             if hit:
                 # 폴백: 기존 규칙 경로와 동일하게 화자명·지문 제거
