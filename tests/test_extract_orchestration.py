@@ -72,3 +72,13 @@ def test_extract_dialogue_ai_xlsx_bypass_calls_no_client():
     sentinel = object()  # client가 쓰이면 AttributeError로 터짐
     out = extract_dialogue_ai(["셀1 대사", "셀2 대사"], "data.xlsx", "k", _client=sentinel)
     assert out == "셀1 대사\n셀2 대사"
+
+
+def test_fallback_strips_speaker_prefix_for_dropped_line():
+    # 콜론형 화자명 대사를 모델이 드롭 → 폴백이 화자명을 제거해야 한다
+    lines = ["민수:    안녕하세요."]
+    out = extract_dialogue_ai(
+        lines, "x.docx", "k",
+        _client=_FakeClient(_rule_all_dialogue, drop_ids={0}),
+    )
+    assert out == "안녕하세요."

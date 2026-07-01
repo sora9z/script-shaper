@@ -4,7 +4,7 @@ from typing import Literal, Optional
 from openai import OpenAI
 from pydantic import BaseModel
 
-from utils.data_processing import remove_inline_directions
+from utils.data_processing import remove_inline_directions, data_processing
 from utils.extract_speaker_and_dialogue import extract_speaker_and_dialogue
 
 MAX_SPEAKER_LEN = 12
@@ -133,11 +133,15 @@ def extract_dialogue_ai(text_list, file_path, api_key, model=CLASSIFY_MODEL, *, 
         return assemble_dialogue(text_list, labels)
 
     labels = classify_lines(api_key, text_list, model, _client=_client)
+    lines = list(text_list)
     # 미분류 id는 기존 regex 캐스케이드로 폴백
     for i, lab in enumerate(labels):
         if lab is None:
             hit = extract_speaker_and_dialogue([text_list[i]], file_path)
-            labels[i] = LineLabel(
-                id=i, type="dialogue" if hit else "other", speaker=None
-            )
-    return assemble_dialogue(text_list, labels)
+            if hit:
+                # 폴백: 기존 규칙 경로와 동일하게 화자명·지문 제거
+                lines[i] = data_processing(text_list[i])
+                labels[i] = LineLabel(id=i, type="dialogue", speaker=None)
+            else:
+                labels[i] = LineLabel(id=i, type="other", speaker=None)
+    return assemble_dialogue(lines, labels)
