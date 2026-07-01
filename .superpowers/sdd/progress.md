@@ -28,3 +28,10 @@ FINAL REVIEW: READY-WITH-NITS (opus). All 3 bugs structurally fixed; constraints
   - DEFERRED minors (ship-as-is): unreachable assemble guard; no dup-id/chunk-raise tests; CHUNK_SIZE dup; CLI flag parsing; sequential --split.
   - REMAINING (user, needs live key): AI-ON end-to-end run in a real terminal (~/Downloads writable there) to confirm the 3 fixes on the docx.
 BRANCH COMPLETE — feat/ai-dialogue-extraction.
+
+CODEX REVIEW (adversarial triage via receiving-code-review):
+  - FIXED (Medium): colon-form speaker slice — added ':' to _BOUNDARY + lstrip(": \t"); test_strips_colon_form_speaker.
+  - FIXED (Medium): xlsx AI bypass now runs data_processing (parity with OFF path); test_xlsx_bypass_strips_speaker_and_directions_like_off_path.
+  - PUSHBACK (High): split-output not validated — pre-existing LLM-reflow step, outside the extraction invariant; offered as optional follow-up (whitespace-insensitive subsequence guard on request_to_openai output).
+  - PUSHBACK (Low): dup-id last-write-wins — YAGNI (strict schema makes it moot, no crash).
+  Full suite: 24 passed.
