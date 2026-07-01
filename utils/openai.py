@@ -51,7 +51,7 @@ def request_to_openai(api_key, content):
                 "content": prompt,
             },
         ],
-        model="gpt-4o",
+        model="gpt-5.4",
         temperature=0.5,
     )
 

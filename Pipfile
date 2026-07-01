@@ -9,7 +9,7 @@ pyhwp = "*"
 pandas = "*"
 "pdfminer.six" = "*"
 openpyxl = "*"
-openai = "*"
+openai = ">=2.0"
 pyinstaller = "*"
 
 [dev-packages]
