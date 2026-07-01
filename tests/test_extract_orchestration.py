@@ -82,3 +82,12 @@ def test_fallback_strips_speaker_prefix_for_dropped_line():
         _client=_FakeClient(_rule_all_dialogue, drop_ids={0}),
     )
     assert out == "안녕하세요."
+
+
+def test_xlsx_bypass_strips_speaker_and_directions_like_off_path():
+    # .xlsx 도 OFF 경로처럼 화자명·지문을 제거해야 한다(분류기는 호출하지 않음)
+    cells = ["민수: 안녕하세요", "소영   반가워 (웃음)"]
+    out = extract_dialogue_ai(cells, "x.xlsx", "k")
+    assert "민수" not in out and "소영" not in out   # 화자명 제거
+    assert "(웃음)" not in out                        # 지문 제거
+    assert "안녕하세요" in out and "반가워" in out

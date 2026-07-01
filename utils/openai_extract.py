@@ -8,7 +8,8 @@ from utils.data_processing import remove_inline_directions, data_processing
 from utils.extract_speaker_and_dialogue import extract_speaker_and_dialogue
 
 MAX_SPEAKER_LEN = 12
-_BOUNDARY = set(" \t([{")
+_BOUNDARY = set(" \t([{:")          # 화자명 뒤에 올 수 있는 구분자(콜론 포함)
+_SEP_STRIP = " \t:"                 # 잘라낼 구분자(괄호는 지문이라 보존)
 
 
 class LineLabel(BaseModel):
@@ -33,7 +34,7 @@ def remove_speaker_prefix(line: str, speaker: Optional[str]) -> str:
     rest = line[len(sp):]
     if rest and rest[0] not in _BOUNDARY:
         return line                       # 가드: 토큰 경계 없음 → 대사 침범 방지
-    return rest.lstrip()
+    return rest.lstrip(_SEP_STRIP)        # 콜론/공백 구분자 제거(괄호 지문은 보존)
 
 
 def assemble_dialogue(lines: list[str], labels: list[LineLabel]) -> str:
@@ -126,11 +127,10 @@ def classify_lines(api_key, lines, model=CLASSIFY_MODEL, *, _client=None):
 
 
 def extract_dialogue_ai(text_list, file_path, api_key, model=CLASSIFY_MODEL, *, _client=None):
-    # .xlsx/.xls: 셀이 이미 대사 1줄 — 분류 생략, 지문 괄호 제거만
+    # .xlsx/.xls: 셀이 이미 대사 1줄 — 분류 생략. OFF 경로와 동일하게
+    # data_processing으로 화자명·지문을 제거(콜론/3+공백 화자명 포함).
     if file_path.endswith((".xlsx", ".xls")):
-        labels = [LineLabel(id=i, type="dialogue", speaker=None)
-                  for i in range(len(text_list))]
-        return assemble_dialogue(text_list, labels)
+        return data_processing("\n".join(text_list))
 
     labels = classify_lines(api_key, text_list, model, _client=_client)
     lines = list(text_list)

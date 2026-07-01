@@ -49,6 +49,19 @@ def test_noop_when_speaker_none():
     assert remove_speaker_prefix("아무 대사", None) == "아무 대사"
 
 
+def test_strips_colon_form_speaker():
+    # 화자명: 대사 형식 — 콜론 구분자도 잘라내야 한다
+    assert remove_speaker_prefix("민수: 안녕하세요", "민수") == "안녕하세요"
+
+
+def test_colon_fix_still_preserves_annotation_paren():
+    # 콜론 처리가 (E) 괄호 표기는 건드리지 않아야 한다(뒤에서 제거)
+    assert (
+        remove_speaker_prefix("수미/경진(E)    생일 축하 합니다!", "수미/경진")
+        == "(E)    생일 축하 합니다!"
+    )
+
+
 # ---------- assemble_dialogue ----------
 
 def test_assemble_fixes_all_three_bugs():
