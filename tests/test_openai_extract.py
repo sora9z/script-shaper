@@ -1,4 +1,5 @@
 import os
+import pytest
 
 from utils.openai_extract import (
     LineLabel,
@@ -88,6 +89,7 @@ def test_assemble_drops_unlabeled_lines():
 
 # ---------- fixture anchors (실제 docx 라인 형태 고정) ----------
 
+@pytest.mark.skipif(not os.path.exists(FIXTURE), reason="원본 대본 fixture 없음(로컬 전용)")
 def test_fixture_contains_expected_raw_line_shapes():
     lines = read_file(FIXTURE)
     assert "수미/경진(E)    생일 축하 합니다! 생일 축하 합니다!" in lines  # #3 대상
