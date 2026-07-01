@@ -10,6 +10,7 @@ from utils.data_processing import data_processing
 from utils.import_file_to_text import import_file_to_text
 from utils.json_service import load_api_key, save_api_key
 from utils.openai import request_to_openai
+from utils.openai_extract import extract_dialogue_ai
 from utils.save_to_word import save_to_word_file
 
 CHUNK_SIZE = 4000
@@ -91,18 +92,20 @@ class FileSelector:
             self._saved_file_lable.config(text=f"저장된 파일 경로: ")
             # import file and convert to text
             text_list = import_file_to_text(self.selected_file_path)
-            # extract speaker and dialogue
-            speaker_and_dialogue_data = extract_speaker_and_dialogue(
-                text_list, self.selected_file_path
-            )
-            # text data processing
-            processed_data = data_processing(
-                "\n".join(speaker_and_dialogue_data))
-            # request to openai by parallel processing
+
             if self.use_ai.get():
-                converted_data = self._request_to_ai(processed_data)
+                api_key = load_api_key() or self._input_api_key()   # 키 1회 로드
+                dialogue_text = extract_dialogue_ai(
+                    text_list, self.selected_file_path, api_key
+                )                                                    # AI 분류 추출
+                converted_data = self._request_to_ai(dialogue_text)  # 기존 20자 분할
             else:
-                converted_data = processed_data
+                speaker_and_dialogue_data = extract_speaker_and_dialogue(
+                    text_list, self.selected_file_path
+                )
+                converted_data = data_processing(
+                    "\n".join(speaker_and_dialogue_data)
+                )
 
             # save to word file
             file_name = os.path.basename(self.selected_file_path)
