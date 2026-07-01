@@ -33,7 +33,7 @@ When "AI 사용" is ON, `main.py` routes extraction through `utils/openai_extrac
 Removes speaker prefixes (same `SPEAKER_DIALOGUE_REGEX_LIST`) and strips bracketed stage directions. Note the trailing-period-insertion block is **commented out** despite the docstring describing it. When AI is enabled this function runs twice on the same text (once on the full text in `convert_file`, again per-chunk in `_process_chunk`).
 
 ### AI enhancement (`utils/openai.py`)
-Single function `request_to_openai(api_key, content)`: hardcoded `model="gpt-4o"`, `temperature=0.5`, with a long Korean prompt instructing the model to split into ≤20-char lines **without altering wording**. `main.py` shards the text into raw `CHUNK_SIZE = 4000`-char slices (which can cut mid-sentence) and runs up to 5 concurrent calls via `ThreadPoolExecutor`, reassembling by original index.
+Single function `request_to_openai(api_key, content)`: hardcoded `model="gpt-5.4"`, `temperature=0.5`, with a long Korean prompt instructing the model to split into ≤20-char lines **without altering wording**. `main.py` shards the text into raw `CHUNK_SIZE = 4000`-char slices (which can cut mid-sentence) and runs up to 5 concurrent calls via `ThreadPoolExecutor`, reassembling by original index.
 
 ## Important gotchas
 
