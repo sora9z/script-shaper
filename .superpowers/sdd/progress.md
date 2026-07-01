@@ -21,3 +21,10 @@ Task 5: complete (commit 8434794, review Spec✅/Quality Approved)
 Task 6: complete (commits ff11dd0..HEAD; docs for AI-ON path + local CLI; 21 passed)
   - Controller fix: corrected stale CLAUDE.md gpt-4o -> gpt-5.4 reference.
   - Deferred to user (needs live key): AI-ON end-to-end run verifying the 3 bug fixes on the real docx (Task 6 Step 5).
+
+FINAL REVIEW: READY-WITH-NITS (opus). All 3 bugs structurally fixed; constraints hold.
+  - Fixed (High H1): dropped temperature from gpt-5.4 split call in utils/openai.py (commit eaedf84).
+  - Fixed (Low L1): added comment noting fallback narration re-leak.
+  - DEFERRED minors (ship-as-is): unreachable assemble guard; no dup-id/chunk-raise tests; CHUNK_SIZE dup; CLI flag parsing; sequential --split.
+  - REMAINING (user, needs live key): AI-ON end-to-end run in a real terminal (~/Downloads writable there) to confirm the 3 fixes on the docx.
+BRANCH COMPLETE — feat/ai-dialogue-extraction.
