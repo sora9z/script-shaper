@@ -11,3 +11,4 @@ Task 3: complete (commits 881e26c..780b620, review clean after fallback speaker-
   - Minor (final-review triage): no dedup guard on duplicate ids within a chunk response (low risk).
   - Minor (final-review triage): no test simulates _classify_chunk raising (except-branch verified analytically).
   - Open (final-review / live): confirm gpt-5.4 accepts chat.completions.parse(response_format=...) and rejects temperature — only checkable against real API (Task 6 AI-ON verification).
+Task 4: complete (commit 315f8ee, self-verified: 3 files, openai>=2.0 pinned @2.44.0, split model gpt-5.4, 21 passed)
