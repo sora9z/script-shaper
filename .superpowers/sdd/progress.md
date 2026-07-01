@@ -18,3 +18,6 @@ Task 5: complete (commit 8434794, review Spec✅/Quality Approved)
   - Minor (final-review triage): CHUNK_SIZE=4000 duplicated in main.py and convert_cli.py.
   - Minor (final-review triage): convert_cli.py hand-rolled flag scan silently ignores typo'd flags (e.g. --slpit).
   - Minor (final-review triage): convert_cli --split is sequential vs GUI parallel (perf only).
+Task 6: complete (commits ff11dd0..HEAD; docs for AI-ON path + local CLI; 21 passed)
+  - Controller fix: corrected stale CLAUDE.md gpt-4o -> gpt-5.4 reference.
+  - Deferred to user (needs live key): AI-ON end-to-end run verifying the 3 bug fixes on the real docx (Task 6 Step 5).
