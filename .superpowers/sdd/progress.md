@@ -47,3 +47,7 @@ PC-Task 3: complete (commits 46d09e8..21f75bb, review clean after off-by-one fix
   - Fixed (Important): extension scan now includes base+extend line (regression test added).
   - Minor (final-review triage): no guard against base<=0 infinite loop (unreachable via current callers).
   - Minor (final-review triage): 1 blank line vs 2 before _SYSTEM_PROMPT (style).
+PC-Task 4: complete (commits 122d805..1468a85, review clean)
+  - Minor (fix in Task 5 wiring): analyze_pattern constructs client/sample before try — bad api_key could raise instead of returning None.
+  - Minor (final-review triage): fake swallows extra kwargs — no self-enforcing "no temperature" assertion.
+  - Minor (accepted, threat-model): pattern_description echoed into system prompt unsanitized (single-user, own-key app).
