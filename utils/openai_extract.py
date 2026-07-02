@@ -134,7 +134,7 @@ def chunk_by_speaker_boundaries(lines, speaker_re, scene_re=None,
     while start < n:
         end = min(start + base, n)
         if end < n and not _is_boundary(lines[end]):
-            for j in range(end + 1, min(end + extend, n)):
+            for j in range(end + 1, min(end + extend + 1, n)):
                 if _is_boundary(lines[j]):
                     end = j
                     break

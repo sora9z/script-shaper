@@ -140,3 +140,12 @@ def test_scene_header_is_also_boundary():
     lines[11] = "#2. 교정"
     chunks = chunk_by_speaker_boundaries(lines, _SPK, scene, base=10, extend=5)
     assert chunks[0] == (0, 11)
+
+
+def test_boundary_at_exactly_extend_is_found():
+    # 경계가 base+extend 지점에 정확히 있을 때도 찾아야 한다(포함 범위)
+    lines = [f"cont{i}" for i in range(30)]
+    lines[0] = "S0 시작"
+    lines[15] = "S1 다음"  # base=10, extend=5 → base+extend=15
+    chunks = chunk_by_speaker_boundaries(lines, _SPK, base=10, extend=5)
+    assert chunks[0] == (0, 15)
