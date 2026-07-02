@@ -157,9 +157,9 @@ _PATTERN_SYSTEM_PROMPT = """너는 한국어 방송 대본의 '표기 형식'을
 
 def analyze_pattern(api_key, lines, model=CLASSIFY_MODEL, *, _client=None):
     """문서 1회 패턴 분석. 어떤 실패든 None(→ 현행 방식으로 폴백)."""
-    client = _client if _client is not None else OpenAI(api_key=api_key)
-    sample = "\n".join(sample_windows(lines))
     try:
+        client = _client if _client is not None else OpenAI(api_key=api_key)
+        sample = "\n".join(sample_windows(lines))
         resp = client.chat.completions.parse(
             model=model,
             messages=[
@@ -209,11 +209,11 @@ def _format_prompt(target, context):
     return "\n".join(lines)
 
 
-def _classify_chunk(client, model, target, context):
+def _classify_chunk(client, model, target, context, system_prompt=_SYSTEM_PROMPT):
     resp = client.chat.completions.parse(
         model=model,
         messages=[
-            {"role": "system", "content": _SYSTEM_PROMPT},
+            {"role": "system", "content": system_prompt},
             {"role": "user", "content": _format_prompt(target, context)},
         ],
         response_format=Classification,
@@ -221,24 +221,34 @@ def _classify_chunk(client, model, target, context):
     return resp.choices[0].message.parsed.labels
 
 
-def classify_lines(api_key, lines, model=CLASSIFY_MODEL, *, _client=None):
+def classify_lines(api_key, lines, model=CLASSIFY_MODEL, *, _client=None,
+                   pattern=None, speaker_re=None, scene_re=None):
     client = _client if _client is not None else OpenAI(api_key=api_key)
     n = len(lines)
     labels = [None] * n
 
+    # 패턴이 검증된 경우: 화자 경계 정렬 청킹 + 프롬프트 주입. 아니면 현행 고정 청킹.
+    system_prompt = _SYSTEM_PROMPT
+    if pattern is not None and speaker_re is not None:
+        system_prompt = _SYSTEM_PROMPT + _pattern_prompt_block(pattern)
+        ranges = chunk_by_speaker_boundaries(lines, speaker_re, scene_re)
+    else:
+        ranges = []
+        start = 0
+        while start < n:
+            ranges.append((start, min(start + CLASSIFY_CHUNK_LINES, n)))
+            start = ranges[-1][1]
+
     chunks = []
-    start = 0
-    while start < n:
-        end = min(start + CLASSIFY_CHUNK_LINES, n)
+    for start, end in ranges:
         ctx_start = max(0, start - CONTEXT_LINES)
         context = [(i, lines[i]) for i in range(ctx_start, start)]
         target = [(i, lines[i]) for i in range(start, end)]
         chunks.append((target, context))
-        start = end
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as ex:
         future_to_ids = {
-            ex.submit(_classify_chunk, client, model, target, context):
+            ex.submit(_classify_chunk, client, model, target, context, system_prompt):
                 {gid for gid, _ in target}
             for target, context in chunks
         }
@@ -259,7 +269,16 @@ def extract_dialogue_ai(text_list, file_path, api_key, model=CLASSIFY_MODEL, *, 
     if file_path.endswith((".xlsx", ".xls")):
         return data_processing("\n".join(text_list))
 
-    labels = classify_lines(api_key, text_list, model, _client=_client)
+    # 문서 1회 패턴 분석 → 검증 실패 시 None(현행 경로)
+    pattern = analyze_pattern(api_key, text_list, model, _client=_client)
+    speaker_re = scene_re = None
+    if pattern is not None:
+        speaker_re, scene_re = validate_pattern(pattern, text_list)
+        if speaker_re is None:
+            pattern = None
+
+    labels = classify_lines(api_key, text_list, model, _client=_client,
+                            pattern=pattern, speaker_re=speaker_re, scene_re=scene_re)
     lines = list(text_list)
     # 미분류 id는 기존 regex 캐스케이드로 폴백
     for i, lab in enumerate(labels):
