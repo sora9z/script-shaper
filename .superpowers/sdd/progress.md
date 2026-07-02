@@ -43,3 +43,7 @@ PC-Task 2: complete (commits 2441933..ecb3bc8, review clean)
   - Minor (final-review triage): no test at exact ratio boundaries 0.05/0.60.
   - Minor (final-review triage): validate_pattern lacks return type annotation (plan code omitted it).
   - Minor (accepted risk, in spec): no ReDoS guard beyond length cap.
+PC-Task 3: complete (commits 46d09e8..21f75bb, review clean after off-by-one fix)
+  - Fixed (Important): extension scan now includes base+extend line (regression test added).
+  - Minor (final-review triage): no guard against base<=0 infinite loop (unreachable via current callers).
+  - Minor (final-review triage): 1 blank line vs 2 before _SYSTEM_PROMPT (style).
