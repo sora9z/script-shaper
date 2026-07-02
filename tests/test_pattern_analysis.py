@@ -149,3 +149,76 @@ def test_boundary_at_exactly_extend_is_found():
     lines[15] = "S1 다음"  # base=10, extend=5 → base+extend=15
     chunks = chunk_by_speaker_boundaries(lines, _SPK, base=10, extend=5)
     assert chunks[0] == (0, 15)
+
+
+from utils.openai_extract import analyze_pattern, _pattern_prompt_block
+
+
+class _PatternFakeCompletions:
+    def __init__(self, result=None, raise_exc=False):
+        self.result = result
+        self.raise_exc = raise_exc
+        self.calls = []
+
+    def parse(self, *, model, messages, response_format, **kwargs):
+        self.calls.append({"messages": messages, "response_format": response_format})
+        if self.raise_exc:
+            raise RuntimeError("boom")
+
+        class _Msg:
+            def __init__(self, p): self.parsed = p
+        class _Choice:
+            def __init__(self, p): self.message = _Msg(p)
+        class _Resp:
+            def __init__(self, p): self.choices = [_Choice(p)]
+        return _Resp(self.result)
+
+
+class _PatternFakeClient:
+    def __init__(self, result=None, raise_exc=False):
+        self.completions = _PatternFakeCompletions(result, raise_exc)
+
+        class _Chat:
+            def __init__(self, c): self.completions = c
+        self.chat = _Chat(self.completions)
+
+
+_GOOD = ScriptPattern(
+    speaker_line_regex=r"^[가-힣A-Za-z0-9/]+\s{3,}",
+    scene_header_regex=r"^#\d+\.",
+    pattern_description="화자명 뒤 공백 3칸 이상 후 대사",
+    speaker_examples=["은비    학교요?", "수미/경진    짠!"],
+)
+
+
+def test_analyze_pattern_returns_parsed_pattern():
+    fake = _PatternFakeClient(result=_GOOD)
+    p = analyze_pattern("k", ["줄1", "줄2"], _client=fake)
+    assert p is _GOOD
+    assert fake.completions.calls[0]["response_format"] is ScriptPattern
+
+
+def test_analyze_pattern_none_on_exception():
+    assert analyze_pattern("k", ["줄"], _client=_PatternFakeClient(raise_exc=True)) is None
+
+
+def test_analyze_pattern_none_on_wrong_parsed_type():
+    fake = _PatternFakeClient(result="문자열임")  # ScriptPattern 아님
+    assert analyze_pattern("k", ["줄"], _client=fake) is None
+
+
+def test_analyze_pattern_sends_sampled_lines():
+    lines = [f"줄{i}" for i in range(300)]
+    fake = _PatternFakeClient(result=_GOOD)
+    analyze_pattern("k", lines, _client=fake)
+    user_msg = fake.completions.calls[0]["messages"][-1]["content"]
+    assert "줄0" in user_msg and "줄299" in user_msg   # 앞/끝 윈도우 포함
+    assert "줄45" not in user_msg                      # 윈도우 밖(45는 40~130 사이 아님) 제외
+
+
+def test_pattern_prompt_block_contents():
+    block = _pattern_prompt_block(_GOOD)
+    assert "화자명 뒤 공백 3칸 이상 후 대사" in block
+    assert "수미/경진    짠!" in block
+    assert _GOOD.speaker_line_regex in block
+    assert "연속 대사" in block

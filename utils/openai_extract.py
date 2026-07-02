@@ -142,6 +142,49 @@ def chunk_by_speaker_boundaries(lines, speaker_re, scene_re=None,
         start = end
     return chunks
 
+
+_PATTERN_SYSTEM_PROMPT = """너는 한국어 방송 대본의 '표기 형식'을 분석하는 분석기다.
+아래 대본 샘플을 보고, 이 문서에서 '화자줄'(등장인물 대사가 시작되는 줄)의 형식 패턴을 찾아라.
+
+반환 규칙:
+- speaker_line_regex: 화자줄만 매치하는 Python regex. 반드시 '^'로 시작(줄 앞 앵커).
+  화자명에는 '/'나 숫자가 올 수 있고, 이름 뒤에 (E)/(N)/(O.L) 같은 표기가 붙을 수 있다.
+  지문·씬헤더 줄은 매치하면 안 된다. 200자 이내로 작성해라.
+- scene_header_regex: 씬 헤더 줄의 regex('^' 앵커). 씬 헤더가 없으면 null.
+- pattern_description: 화자줄/지문/씬헤더를 구분하는 방법을 2~3문장의 한국어로.
+- speaker_examples: 샘플에 실제로 존재하는 화자줄 2~5개를 그대로 복사해라."""
+
+
+def analyze_pattern(api_key, lines, model=CLASSIFY_MODEL, *, _client=None):
+    """문서 1회 패턴 분석. 어떤 실패든 None(→ 현행 방식으로 폴백)."""
+    client = _client if _client is not None else OpenAI(api_key=api_key)
+    sample = "\n".join(sample_windows(lines))
+    try:
+        resp = client.chat.completions.parse(
+            model=model,
+            messages=[
+                {"role": "system", "content": _PATTERN_SYSTEM_PROMPT},
+                {"role": "user", "content": sample},
+            ],
+            response_format=ScriptPattern,
+        )
+        parsed = resp.choices[0].message.parsed
+        return parsed if isinstance(parsed, ScriptPattern) else None
+    except Exception as e:
+        print(f"패턴 분석 실패(현행 방식으로 진행): {e}")
+        return None
+
+
+def _pattern_prompt_block(pattern: ScriptPattern) -> str:
+    examples = "\n".join(f"  - {ex}" for ex in pattern.speaker_examples[:5])
+    return (
+        "\n\n[이 문서의 확인된 패턴]\n"
+        f"- 화자줄 형식: {pattern.pattern_description}\n"
+        f"- 화자줄 예시:\n{examples}\n"
+        f"- 참고 regex: {pattern.speaker_line_regex}\n"
+        "- 화자줄 형식이 아닌데 대사로 판단되는 줄은 앞 화자의 '연속 대사'다 (speaker=null)."
+    )
+
 _SYSTEM_PROMPT = """너는 한국어 방송 대본에서 각 줄의 역할을 분류하는 분석기다.
 각 줄을 문장 끝 어미가 아니라 '역할'로 분류해라:
 - dialogue: 등장인물이 말하는 대사. 문장이 '~다'나 ','로 끝나도 인물의 발화면 dialogue다.
