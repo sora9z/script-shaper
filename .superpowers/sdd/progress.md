@@ -39,3 +39,7 @@ CODEX REVIEW (adversarial triage via receiving-code-review):
 === PATTERN-AWARE CHUNKING (plan: docs/superpowers/plans/2026-07-02-pattern-aware-chunking.md) ===
 Spec: docs/superpowers/specs/2026-07-02-pattern-aware-chunking-design.md (approved: 접근안1, 정확도 우선, xlsx 바이패스 유지)
 PC-Task 1: complete (commits 7c856bd..d5b1d35, review clean; Minor: unused `import re` in test file — used by Task 2/3 tests, no action)
+PC-Task 2: complete (commits 2441933..ecb3bc8, review clean)
+  - Minor (final-review triage): no test at exact ratio boundaries 0.05/0.60.
+  - Minor (final-review triage): validate_pattern lacks return type annotation (plan code omitted it).
+  - Minor (accepted risk, in spec): no ReDoS guard beyond length cap.
