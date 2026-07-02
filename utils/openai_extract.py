@@ -22,6 +22,27 @@ class Classification(BaseModel):
     labels: list[LineLabel]
 
 
+SAMPLE_WINDOWS = 3
+SAMPLE_WINDOW_LINES = 40
+
+
+class ScriptPattern(BaseModel):
+    """문서 1회 패턴 분석 결과 (structured output)."""
+    speaker_line_regex: str            # 화자줄 판정 regex, ^ 앵커
+    scene_header_regex: Optional[str] = None
+    pattern_description: str           # 분류 프롬프트 주입용 한국어 설명
+    speaker_examples: list[str]        # 샘플에서 그대로 복사한 화자줄 예시
+
+
+def sample_windows(lines: list[str], n_windows: int = SAMPLE_WINDOWS,
+                   window: int = SAMPLE_WINDOW_LINES) -> list[str]:
+    """패턴 분석용 샘플: 앞/중간/끝 윈도우. 짧은 문서는 전체를 그대로 반환."""
+    if len(lines) <= n_windows * window:
+        return list(lines)
+    mid_start = (len(lines) - window) // 2
+    return lines[:window] + lines[mid_start:mid_start + window] + lines[-window:]
+
+
 def remove_speaker_prefix(line: str, speaker: Optional[str]) -> str:
     """원문 line 앞의 화자명 토큰만 잘라낸다. 항상 원문이거나 우측 부분문자열을 반환."""
     if not speaker:
