@@ -91,3 +91,52 @@ def test_validate_pattern_valid_scene_regex():
     )
     assert speaker_re is not None and scene_re is not None
     assert scene_re.match("#3. 교정. 아침")
+
+
+# ---------- chunk_by_speaker_boundaries ----------
+
+from utils.openai_extract import chunk_by_speaker_boundaries
+
+_SPK = re.compile(r"^S\d+ ")
+
+
+def test_chunks_align_to_speaker_boundary():
+    # 4줄 블록: S{i}, 이어짐 3줄
+    lines = []
+    for i in range(10):
+        lines.append(f"S{i} 대사")
+        lines += [f"이어짐{i}a", f"이어짐{i}b", f"이어짐{i}c"]
+    chunks = chunk_by_speaker_boundaries(lines, _SPK, base=10, extend=5)
+    assert chunks[0] == (0, 12)  # idx10은 연속줄 → idx12(S3) 직전까지 연장
+    for start, end in chunks[:-1]:
+        assert _SPK.match(lines[end])  # 다음 청크는 항상 화자줄에서 시작
+
+
+def test_chunks_cover_all_lines_without_overlap_or_gap():
+    lines = [f"S{i // 4} x" if i % 4 == 0 else f"cont{i}" for i in range(103)]
+    chunks = chunk_by_speaker_boundaries(lines, _SPK, base=10, extend=5)
+    flat = [i for s, e in chunks for i in range(s, e)]
+    assert flat == list(range(103))
+
+
+def test_no_boundary_within_extend_keeps_base():
+    lines = ["S0 시작"] + [f"cont{i}" for i in range(60)]  # 화자줄이 하나뿐
+    chunks = chunk_by_speaker_boundaries(lines, _SPK, base=10, extend=5)
+    assert chunks[0] == (0, 10)  # 연장 실패 → 현행처럼 base에서 절단
+
+
+def test_boundary_exactly_at_base_needs_no_extension():
+    lines = []
+    for i in range(4):
+        lines.append(f"S{i} 대사")
+        lines += [f"c{i}{j}" for j in range(9)]  # 블록 10줄
+    chunks = chunk_by_speaker_boundaries(lines, _SPK, base=10, extend=5)
+    assert chunks == [(0, 10), (10, 20), (20, 30), (30, 40)]
+
+
+def test_scene_header_is_also_boundary():
+    scene = re.compile(r"^#\d+\.")
+    lines = [f"cont{i}" for i in range(20)]
+    lines[11] = "#2. 교정"
+    chunks = chunk_by_speaker_boundaries(lines, _SPK, scene, base=10, extend=5)
+    assert chunks[0] == (0, 11)

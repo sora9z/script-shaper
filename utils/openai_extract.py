@@ -114,6 +114,34 @@ CLASSIFY_CHUNK_LINES = 50
 CONTEXT_LINES = 5
 MAX_WORKERS = 5
 
+CHUNK_EXTEND_LINES = 30
+
+
+def chunk_by_speaker_boundaries(lines, speaker_re, scene_re=None,
+                                base=CLASSIFY_CHUNK_LINES,
+                                extend=CHUNK_EXTEND_LINES):
+    """화자줄/씬헤더 '직전'으로 끝을 정렬한 [start, end) 청크 목록.
+
+    base 지점이 이미 경계면 그대로 절단, 아니면 최대 extend줄 안에서
+    다음 경계를 찾아 연장. 경계가 없으면 base 그대로(현행과 동일).
+    """
+    def _is_boundary(ln):
+        return bool(speaker_re.match(ln) or (scene_re and scene_re.match(ln)))
+
+    n = len(lines)
+    chunks = []
+    start = 0
+    while start < n:
+        end = min(start + base, n)
+        if end < n and not _is_boundary(lines[end]):
+            for j in range(end + 1, min(end + extend, n)):
+                if _is_boundary(lines[j]):
+                    end = j
+                    break
+        chunks.append((start, end))
+        start = end
+    return chunks
+
 _SYSTEM_PROMPT = """너는 한국어 방송 대본에서 각 줄의 역할을 분류하는 분석기다.
 각 줄을 문장 끝 어미가 아니라 '역할'로 분류해라:
 - dialogue: 등장인물이 말하는 대사. 문장이 '~다'나 ','로 끝나도 인물의 발화면 dialogue다.
