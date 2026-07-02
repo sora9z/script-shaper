@@ -1,3 +1,4 @@
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Literal, Optional
 
@@ -41,6 +42,40 @@ def sample_windows(lines: list[str], n_windows: int = SAMPLE_WINDOWS,
         return list(lines)
     mid_start = (len(lines) - window) // 2
     return lines[:window] + lines[mid_start:mid_start + window] + lines[-window:]
+
+
+MAX_PATTERN_REGEX_LEN = 200
+MATCH_RATIO_MIN = 0.05
+MATCH_RATIO_MAX = 0.60
+
+
+def validate_pattern(pattern: ScriptPattern, lines: list[str]):
+    """speaker regex를 컴파일·상식 검증. 반환 (speaker_re, scene_re); 실패 시 (None, None).
+
+    - 길이 ≤ MAX_PATTERN_REGEX_LEN, 컴파일 가능해야 함
+    - 전체 줄 대비 매치율이 [MATCH_RATIO_MIN, MATCH_RATIO_MAX] 여야 함(화자줄은 '일부'라는 상식)
+    - scene regex는 실패해도 그것만 버림(전체 폴백 아님)
+    """
+    if not lines or not pattern.speaker_line_regex:
+        return None, None
+    rx = pattern.speaker_line_regex
+    if len(rx) > MAX_PATTERN_REGEX_LEN:
+        return None, None
+    try:
+        speaker_re = re.compile(rx)
+    except re.error:
+        return None, None
+    ratio = sum(1 for ln in lines if speaker_re.match(ln)) / len(lines)
+    if not (MATCH_RATIO_MIN <= ratio <= MATCH_RATIO_MAX):
+        return None, None
+
+    scene_re = None
+    if pattern.scene_header_regex and len(pattern.scene_header_regex) <= MAX_PATTERN_REGEX_LEN:
+        try:
+            scene_re = re.compile(pattern.scene_header_regex)
+        except re.error:
+            scene_re = None
+    return speaker_re, scene_re
 
 
 def remove_speaker_prefix(line: str, speaker: Optional[str]) -> str:
