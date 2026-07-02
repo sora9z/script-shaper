@@ -51,3 +51,6 @@ PC-Task 4: complete (commits 122d805..1468a85, review clean)
   - Minor (fix in Task 5 wiring): analyze_pattern constructs client/sample before try — bad api_key could raise instead of returning None.
   - Minor (final-review triage): fake swallows extra kwargs — no self-enforcing "no temperature" assertion.
   - Minor (accepted, threat-model): pattern_description echoed into system prompt unsanitized (single-user, own-key app).
+PC-Task 5: complete (commits 030d4e3..53580f4, review clean; fallback floor + no half-applied state verified)
+  - Includes sanctioned fix: analyze_pattern client/sample construction moved inside try (OpenAI(api_key=None) constructor raise confirmed real).
+  - Minor (final-review triage): pattern test asserts classify_calls[0] ordering — stable only because fake is sync/fast.
