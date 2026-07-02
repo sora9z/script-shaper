@@ -35,3 +35,6 @@ CODEX REVIEW (adversarial triage via receiving-code-review):
   - PUSHBACK (High): split-output not validated — pre-existing LLM-reflow step, outside the extraction invariant; offered as optional follow-up (whitespace-insensitive subsequence guard on request_to_openai output).
   - PUSHBACK (Low): dup-id last-write-wins — YAGNI (strict schema makes it moot, no crash).
   Full suite: 24 passed.
+
+=== PATTERN-AWARE CHUNKING (plan: docs/superpowers/plans/2026-07-02-pattern-aware-chunking.md) ===
+Spec: docs/superpowers/specs/2026-07-02-pattern-aware-chunking-design.md (approved: 접근안1, 정확도 우선, xlsx 바이패스 유지)
