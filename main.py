@@ -1,4 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import logging
 import os
 import tkinter as tk
 from tkinter import filedialog
@@ -8,7 +9,8 @@ from tkinter import simpledialog
 from utils.extract_speaker_and_dialogue import extract_speaker_and_dialogue
 from utils.data_processing import data_processing
 from utils.import_file_to_text import import_file_to_text
-from utils.json_service import load_api_key, save_api_key
+from utils.json_service import load_api_key, save_api_key, load_setting, save_setting
+from utils.logger import setup_logging
 from utils.openai import request_to_openai
 from utils.openai_extract import extract_dialogue_ai
 from utils.save_to_word import save_to_word_file
@@ -20,7 +22,7 @@ class FileSelector:
     def __init__(self, root):
         self.root = root
         self.selected_file = None
-        self.use_ai = tk.BooleanVar(value=False)
+        self.use_ai = tk.BooleanVar(value=True)  # AI 사용이 기본값
 
         # 파일 경로를 보여줄 레이블
         self.file_lable = tk.Label(root, text="선택된 파일 없음", wraplength=500)
@@ -81,7 +83,7 @@ class FileSelector:
         """설정 창: OpenAI API 키 입력 → settings.json에 저장"""
         win = tk.Toplevel(self.root)
         win.title("설정")
-        win.geometry("420x160")
+        win.geometry("460x260")
         win.transient(self.root)
         win.grab_set()  # 모달
 
@@ -161,13 +163,43 @@ class FileSelector:
         self._settings_paste = paste_clipboard
         self._settings_cmdkey = on_command_key
 
+        # ---- 기본 저장 경로 설정 ----
+        DEFAULT_DIR_TEXT = "(기본값: ~/Downloads)"
+        current_dir = load_setting("output_dir")
+        dir_var = tk.StringVar(value=current_dir or DEFAULT_DIR_TEXT)
+        tk.Label(win, text="변환 결과 기본 저장 경로").pack(pady=(15, 5))
+        dir_row = tk.Frame(win)
+        dir_row.pack(pady=5)
+        dir_label = tk.Label(
+            dir_row, textvariable=dir_var, width=32, anchor="w", relief="sunken"
+        )
+        dir_label.pack(side="left", padx=(0, 5))
+
+        def choose_dir():
+            initial = dir_var.get()
+            selected = filedialog.askdirectory(
+                parent=win,
+                title="기본 저장 경로 선택",
+                initialdir=initial if os.path.isdir(initial) else os.path.expanduser("~"),
+            )
+            if selected:
+                dir_var.set(selected)
+
+        def reset_dir():
+            dir_var.set(DEFAULT_DIR_TEXT)
+
+        tk.Button(dir_row, text="폴더 선택", command=choose_dir).pack(side="left")
+        tk.Button(dir_row, text="기본값", command=reset_dir).pack(side="left", padx=(5, 0))
+        self._settings_dir_var = dir_var  # 테스트/디버깅용 핸들
+        self._settings_dir_default_text = DEFAULT_DIR_TEXT
+
         def save():
             api_key = key_entry.get().strip()
-            if not api_key:
-                messagebox.showwarning("설정", "API 키를 입력해주세요.", parent=win)
-                return
-            save_api_key(api_key)
-            messagebox.showinfo("설정", "API 키가 저장되었습니다.", parent=win)
+            if api_key:  # 비워두면 기존 키 유지
+                save_api_key(api_key)
+            chosen = dir_var.get().strip()
+            save_setting("output_dir", None if chosen in ("", DEFAULT_DIR_TEXT) else chosen)
+            messagebox.showinfo("설정", "설정이 저장되었습니다.", parent=win)
             win.destroy()
 
         btn_row = tk.Frame(win)
@@ -198,11 +230,28 @@ class FileSelector:
     def convert_file(self):
         try:
             self._saved_file_lable.config(text=f"저장된 파일 경로: ")
+
+            # AI 사용인데 API 키가 없으면 시작 전에 에러로 중단 (설정으로 안내)
+            if self.use_ai.get():
+                api_key = load_api_key()
+                if not api_key:
+                    logging.warning("변환 중단: AI 사용 ON 상태에서 API 키 미등록")
+                    messagebox.showerror(
+                        "API 키 필요",
+                        "AI 사용이 켜져 있지만 OpenAI API 키가 등록되지 않았습니다.\n"
+                        "'설정' 버튼에서 API 키를 먼저 등록해주세요.",
+                    )
+                    return
+
+            logging.info(
+                "변환 시작: %s (AI %s)",
+                self.selected_file_path,
+                "ON" if self.use_ai.get() else "OFF",
+            )
             # import file and convert to text
             text_list = import_file_to_text(self.selected_file_path)
 
             if self.use_ai.get():
-                api_key = load_api_key() or self._input_api_key()   # 키 1회 로드
                 dialogue_text = extract_dialogue_ai(
                     text_list, self.selected_file_path, api_key
                 )                                                    # AI 분류 추출
@@ -215,24 +264,26 @@ class FileSelector:
                     "\n".join(speaker_and_dialogue_data)
                 )
 
-            # save to word file
+            # save to word file (설정된 저장 폴더, 없으면 기본 ~/Downloads)
+            output_dir = load_setting("output_dir")
             file_name = os.path.basename(self.selected_file_path)
-            save_to_word_file(converted_data, file_name + "_converted")
+            save_to_word_file(converted_data, file_name + "_converted", output_dir=output_dir)
+            shown_dir = output_dir if output_dir else "~/Downloads"
             self._saved_file_lable.config(
-                text=f"저장된 파일 경로: {file_name + '_converted.docx'}"
+                text=f"저장된 파일 경로: {os.path.join(shown_dir, file_name + '_converted.docx')}"
             )
 
         except Exception as e:
-            print(f"Error in convert_file: {e}")
+            logging.exception("convert_file 실패")  # traceback 포함 로그
             messagebox.showerror("Error", str(e))
 
     def _request_to_ai(self, processed_data: str):
-        print("AI 요청 중...")
         # 긴 텍스트를 일정 크기(chunk_size)로 나누는 작업
         text_chunks = [
             processed_data[i: i + CHUNK_SIZE]
             for i in range(0, len(processed_data), CHUNK_SIZE)
         ]
+        logging.info("20자 분할 요청: %d자 → %d청크", len(processed_data), len(text_chunks))
 
         # 결과를 저장할 리스트
         converted_data_chunks = [None] * len(text_chunks)
@@ -255,9 +306,9 @@ class FileSelector:
             try:
                 # 원래 인덱스 위치에 저장
                 converted_data_chunks[index] = future.result()
-            except Exception as e:
-                print(f"청크 {index} 처리 중 오류 발생: {e}")
-                messagebox.showerror("Error", f"청크 {index} 처리 실패: {str(e)}")
+            except Exception:
+                logging.exception("20자 분할 청크 %d 처리 실패", index)
+                messagebox.showerror("Error", f"청크 {index} 처리 실패")
                 # 청크들을 순서대로 합침
         return "\n".join(chunk for chunk in converted_data_chunks if chunk is not None)
 
@@ -265,9 +316,7 @@ class FileSelector:
         """단일 청크를 처리하는 메서드"""
         processed_chunk = data_processing(chunk)
         if self.use_ai:
-            print(
-                f"청크 처리 중 {index + 1}/{len(text_chunks)} (전체 길이: {total_length})"
-            )
+            logging.info("20자 분할 청크 %d/%d 처리 중", index + 1, len(text_chunks))
             processed_chunk = self._send_to_ai(processed_chunk)
         return processed_chunk
 
@@ -289,10 +338,19 @@ class FileSelector:
             raise ValueError("API 키가 입력되지 않았습니다.")
 
 
+def _report_tk_exception(exc, val, tb):
+    """tkinter 콜백 안의 미처리 예외도 로그에 남긴다."""
+    logging.error("GUI 콜백 예외", exc_info=(exc, val, tb))
+    messagebox.showerror("Error", str(val))
+
+
 if __name__ == "__main__":
+    log_path = setup_logging()
+
     root = tk.Tk()
     root.title("Script Shaper")
     root.geometry("800x400")
+    root.report_callback_exception = _report_tk_exception
 
     app = FileSelector(root)
     root.mainloop()

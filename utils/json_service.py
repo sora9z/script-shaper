@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 
 
@@ -23,14 +24,25 @@ def _read_settings(path):
         return None
 
 
-def save_api_key(api_key):
-    """API 키를 settings.json에 저장 (다른 설정 키는 보존)"""
+def save_setting(key, value):
+    """설정 값 하나를 settings.json에 저장 (다른 키는 보존)"""
     settings = _read_settings(SETTINGS_PATH) or {}
-    settings["openai_api_key"] = api_key
+    settings[key] = value
     os.makedirs(os.path.dirname(SETTINGS_PATH), exist_ok=True)
     with open(SETTINGS_PATH, "w") as f:
         json.dump(settings, f)
-    print(f"API 키가 {SETTINGS_PATH}에 저장되었습니다.")
+
+
+def load_setting(key):
+    """settings.json에서 설정 값 하나를 로드. 없으면 None."""
+    settings = _read_settings(SETTINGS_PATH)
+    return settings.get(key) if settings else None
+
+
+def save_api_key(api_key):
+    """API 키를 settings.json에 저장 (다른 설정 키는 보존)"""
+    save_setting("openai_api_key", api_key)
+    logging.info("API 키 저장됨: %s", SETTINGS_PATH)  # 키 값은 로그에 남기지 않음
 
 
 def load_api_key():

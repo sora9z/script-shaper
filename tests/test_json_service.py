@@ -39,3 +39,18 @@ def test_load_migrates_legacy_downloads_key(monkeypatch, tmp_path):
 def test_load_returns_none_when_nowhere(monkeypatch, tmp_path):
     _patch_paths(monkeypatch, tmp_path)
     assert json_service.load_api_key() is None
+
+
+def test_generic_setting_roundtrip(monkeypatch, tmp_path):
+    new, _ = _patch_paths(monkeypatch, tmp_path)
+    json_service.save_setting("output_dir", "/tmp/결과폴더")
+    assert json_service.load_setting("output_dir") == "/tmp/결과폴더"
+    # 기존 api 키와 공존
+    json_service.save_api_key("sk-x")
+    assert json_service.load_setting("output_dir") == "/tmp/결과폴더"
+    assert json_service.load_api_key() == "sk-x"
+
+
+def test_load_setting_none_when_missing(monkeypatch, tmp_path):
+    _patch_paths(monkeypatch, tmp_path)
+    assert json_service.load_setting("output_dir") is None
