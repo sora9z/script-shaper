@@ -3,6 +3,7 @@
   pipenv run python convert_cli.py "경로/파일.docx"          # 기존 regex 추출
   pipenv run python convert_cli.py "경로/파일.docx" --ai      # AI 분류 추출(분할 없음)
   pipenv run python convert_cli.py "경로/파일.docx" --ai --split  # AI 추출 + 20자 분할
+  pipenv run python convert_cli.py "경로/파일.docx" --ai --out issue/20260630  # 저장 폴더 지정
 """
 import os
 import sys
@@ -20,10 +21,20 @@ CHUNK_SIZE = 4000
 
 def main():
     argv = sys.argv[1:]
+    # --out <dir> 는 값을 갖는 옵션이라 먼저 분리
+    output_dir = None
+    if "--out" in argv:
+        i = argv.index("--out")
+        if i + 1 >= len(argv) or argv[i + 1].startswith("--"):
+            print("--out 뒤에 저장 폴더 경로가 필요합니다")
+            sys.exit(1)
+        output_dir = argv[i + 1]
+        argv = argv[:i] + argv[i + 2:]
+
     flags = {a for a in argv if a.startswith("--")}
     positionals = [a for a in argv if not a.startswith("--")]
     if not positionals:
-        print('usage: python convert_cli.py "<file>" [--ai] [--split]')
+        print('usage: python convert_cli.py "<file>" [--ai] [--split] [--out <dir>]')
         sys.exit(1)
 
     path = positionals[0]
@@ -49,8 +60,9 @@ def main():
         converted = data_processing("\n".join(data))
 
     out_name = os.path.basename(path) + "_converted"
-    save_to_word_file(converted, out_name)
-    print(f"저장: ~/Downloads/{out_name}.docx")
+    save_to_word_file(converted, out_name, output_dir=output_dir)
+    shown_dir = output_dir if output_dir else "~/Downloads"
+    print(f"저장: {shown_dir}/{out_name}.docx")
     print("----- 추출 결과 미리보기 -----")
     print("\n".join(converted.split("\n")[:40]))
 
