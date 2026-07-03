@@ -63,9 +63,117 @@ class FileSelector:
         )
         self.ai_checkbox.pack(pady=5)
 
+        # 설정 버튼 (OpenAI API 키 등록/변경)
+        self.settings_button = tk.Button(
+            root,
+            text="설정",
+            command=self.open_settings,
+            width=15,
+            height=2,
+        )
+        self.settings_button.pack(pady=5)
+
         # 로그를 보여줄 텍스트 위젯
         self.log_text = tk.Text(root, height=10, width=70)
         self.log_text.pack(pady=10)
+
+    def open_settings(self):
+        """설정 창: OpenAI API 키 입력 → settings.json에 저장"""
+        win = tk.Toplevel(self.root)
+        win.title("설정")
+        win.geometry("420x160")
+        win.transient(self.root)
+        win.grab_set()  # 모달
+
+        current = load_api_key()
+        status = f"현재 키: {current[:7]}···{current[-4:]}" if current else "등록된 키 없음"
+        tk.Label(win, text=f"OpenAI API 키  ({status})").pack(pady=(15, 5))
+
+        key_entry = tk.Entry(win, width=45, show="*")
+        key_entry.pack(pady=5)
+        key_entry.focus_set()
+
+        def paste_clipboard(_event=None):
+            try:
+                text = win.clipboard_get().strip()
+            except tk.TclError:
+                return "break"  # 클립보드 비어있음
+            key_entry.delete(0, tk.END)
+            key_entry.insert(0, text)
+            return "break"
+
+        def on_command_key(event):
+            """Cmd+V/C/A/X 처리 — 한글 입력기에서는 keysym이 'v'가 아니라
+            'ㅍ'으로 들어와 일반 <Command-v> 바인딩이 매치되지 않으므로,
+            keysym(영/한) + 물리 keycode 둘 다로 판정한다."""
+            key = (event.keysym or "").lower()
+            code = event.keycode
+            if key in ("v", "ㅍ") or code == 9:        # V (kVK_ANSI_V)
+                return paste_clipboard()
+            if key in ("a", "ㅁ") or code == 0:        # A: 전체 선택
+                key_entry.select_range(0, tk.END)
+                key_entry.icursor(tk.END)
+                return "break"
+            if key in ("c", "ㅊ", "x", "ㅌ") or code in (8, 7):  # C/X: 복사·잘라내기
+                try:
+                    selected = key_entry.selection_get()
+                except tk.TclError:
+                    return "break"
+                win.clipboard_clear()
+                win.clipboard_append(selected)
+                if key in ("x", "ㅌ") or code == 7:
+                    key_entry.delete(tk.SEL_FIRST, tk.SEL_LAST)
+                return "break"
+            return None
+
+        key_entry.bind("<Command-KeyPress>", on_command_key)
+        key_entry.bind("<Control-KeyPress>", on_command_key)
+
+        # 핵심: 메뉴 액셀러레이터 — macOS에서 Cmd+V는 한글 입력기(IME)가
+        # 키 이벤트를 삼켜 Tk 바인딩에 도달하지 않는다(Tk<=8.6.12 버그).
+        # 메뉴의 key equivalent는 IME 이전(NSMenu 레벨)에서 처리되므로
+        # 편집 메뉴를 달아야 입력기와 무관하게 단축키가 동작한다.
+        def select_all():
+            key_entry.select_range(0, tk.END)
+            key_entry.icursor(tk.END)
+
+        def copy_selection():
+            try:
+                selected = key_entry.selection_get()
+            except tk.TclError:
+                return
+            win.clipboard_clear()
+            win.clipboard_append(selected)
+
+        menubar = tk.Menu(win)
+        edit_menu = tk.Menu(menubar, tearoff=0)
+        edit_menu.add_command(label="붙여넣기", accelerator="Command-V",
+                              command=paste_clipboard)
+        edit_menu.add_command(label="복사", accelerator="Command-C",
+                              command=copy_selection)
+        edit_menu.add_command(label="전체 선택", accelerator="Command-A",
+                              command=select_all)
+        menubar.add_cascade(label="편집", menu=edit_menu)
+        win.config(menu=menubar)
+
+        # 테스트/디버깅용 핸들
+        self._settings_entry = key_entry
+        self._settings_paste = paste_clipboard
+        self._settings_cmdkey = on_command_key
+
+        def save():
+            api_key = key_entry.get().strip()
+            if not api_key:
+                messagebox.showwarning("설정", "API 키를 입력해주세요.", parent=win)
+                return
+            save_api_key(api_key)
+            messagebox.showinfo("설정", "API 키가 저장되었습니다.", parent=win)
+            win.destroy()
+
+        btn_row = tk.Frame(win)
+        btn_row.pack(pady=10)
+        tk.Button(btn_row, text="저장", command=save, width=10).pack(side="left", padx=5)
+        tk.Button(btn_row, text="취소", command=win.destroy, width=10).pack(side="left", padx=5)
 
     def select_file(self):
         file_path = filedialog.askopenfilename(
