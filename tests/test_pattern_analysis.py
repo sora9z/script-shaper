@@ -1,0 +1,240 @@
+import re
+
+from utils.openai_extract import (
+    ScriptPattern,
+    sample_windows,
+    validate_pattern,
+)
+
+
+# ---------- ScriptPattern ----------
+
+def test_script_pattern_schema_defaults():
+    p = ScriptPattern(
+        speaker_line_regex=r"^[가-힣]+\s{3,}",
+        pattern_description="화자명 뒤 3칸 이상 공백",
+        speaker_examples=["은비    학교요?"],
+    )
+    assert p.scene_header_regex is None
+    assert p.speaker_examples == ["은비    학교요?"]
+
+
+# ---------- sample_windows ----------
+
+def test_sample_windows_long_doc_three_windows():
+    lines = [f"줄{i}" for i in range(300)]
+    w = sample_windows(lines)
+    assert len(w) == 120
+    assert w[:40] == lines[:40]                       # 앞
+    mid_start = (300 - 40) // 2
+    assert w[40:80] == lines[mid_start:mid_start + 40]  # 중간
+    assert w[80:] == lines[-40:]                      # 끝
+
+
+def test_sample_windows_short_doc_returns_all_once():
+    lines = [f"줄{i}" for i in range(50)]
+    assert sample_windows(lines) == lines
+
+
+def test_sample_windows_exact_boundary_returns_all():
+    lines = [f"줄{i}" for i in range(120)]  # 정확히 3*40
+    assert sample_windows(lines) == lines
+
+
+# ---------- validate_pattern ----------
+
+
+def _mk(regex, scene=None):
+    return ScriptPattern(
+        speaker_line_regex=regex,
+        scene_header_regex=scene,
+        pattern_description="d",
+        speaker_examples=["x"],
+    )
+
+
+_CORPUS = (["이름1    대사"] * 2 + ["지문 설명 줄"] * 8) * 5  # 화자줄 비율 0.2
+
+
+def test_validate_pattern_accepts_sane_regex():
+    speaker_re, scene_re = validate_pattern(_mk(r"^이름\d+\s{3,}"), _CORPUS)
+    assert speaker_re is not None and scene_re is None
+    assert speaker_re.match("이름1    대사")
+
+
+def test_validate_pattern_rejects_uncompilable():
+    assert validate_pattern(_mk(r"["), _CORPUS) == (None, None)
+
+
+def test_validate_pattern_rejects_empty_regex():
+    # 화자줄이 없는 문서(SRT/자막 리스트): 모델이 빈 regex 반환 → 전면 폴백
+    assert validate_pattern(_mk(""), _CORPUS) == (None, None)
+
+
+def test_boundary_union_matches_learned_and_baseline_forms():
+    from utils.openai_extract import _boundary_union
+    learned = re.compile(r"^이름\d+\s{3,}")
+    u = _boundary_union(learned)
+    assert u.match("이름3    대사")          # 학습(문서별) regex
+    assert u.match("민수: 안녕")             # baseline 콜론형
+    assert u.match("은비   놔!")             # baseline 3+공백형
+    assert not u.match("평화로운 등굣길 풍경")  # 지문은 경계 아님
+
+
+def test_validate_pattern_rejects_overmatching():
+    assert validate_pattern(_mk(r"^.*"), _CORPUS) == (None, None)  # 비율 1.0 > 0.60
+
+
+def test_validate_pattern_rejects_no_match():
+    assert validate_pattern(_mk(r"^ZZZ"), _CORPUS) == (None, None)  # 비율 0 < 0.05
+
+
+def test_validate_pattern_rejects_overlong_regex():
+    assert validate_pattern(_mk(r"^" + r"a?" * 150), _CORPUS) == (None, None)
+
+
+def test_validate_pattern_scene_failure_keeps_speaker():
+    speaker_re, scene_re = validate_pattern(
+        _mk(r"^이름\d+\s{3,}", scene=r"["), _CORPUS
+    )
+    assert speaker_re is not None and scene_re is None
+
+
+def test_validate_pattern_valid_scene_regex():
+    speaker_re, scene_re = validate_pattern(
+        _mk(r"^이름\d+\s{3,}", scene=r"^#\d+\."), _CORPUS
+    )
+    assert speaker_re is not None and scene_re is not None
+    assert scene_re.match("#3. 교정. 아침")
+
+
+# ---------- chunk_by_speaker_boundaries ----------
+
+from utils.openai_extract import chunk_by_speaker_boundaries
+
+_SPK = re.compile(r"^S\d+ ")
+
+
+def test_chunks_align_to_speaker_boundary():
+    # 4줄 블록: S{i}, 이어짐 3줄
+    lines = []
+    for i in range(10):
+        lines.append(f"S{i} 대사")
+        lines += [f"이어짐{i}a", f"이어짐{i}b", f"이어짐{i}c"]
+    chunks = chunk_by_speaker_boundaries(lines, _SPK, base=10, extend=5)
+    assert chunks[0] == (0, 12)  # idx10은 연속줄 → idx12(S3) 직전까지 연장
+    for start, end in chunks[:-1]:
+        assert _SPK.match(lines[end])  # 다음 청크는 항상 화자줄에서 시작
+
+
+def test_chunks_cover_all_lines_without_overlap_or_gap():
+    lines = [f"S{i // 4} x" if i % 4 == 0 else f"cont{i}" for i in range(103)]
+    chunks = chunk_by_speaker_boundaries(lines, _SPK, base=10, extend=5)
+    flat = [i for s, e in chunks for i in range(s, e)]
+    assert flat == list(range(103))
+
+
+def test_no_boundary_within_extend_keeps_base():
+    lines = ["S0 시작"] + [f"cont{i}" for i in range(60)]  # 화자줄이 하나뿐
+    chunks = chunk_by_speaker_boundaries(lines, _SPK, base=10, extend=5)
+    assert chunks[0] == (0, 10)  # 연장 실패 → 현행처럼 base에서 절단
+
+
+def test_boundary_exactly_at_base_needs_no_extension():
+    lines = []
+    for i in range(4):
+        lines.append(f"S{i} 대사")
+        lines += [f"c{i}{j}" for j in range(9)]  # 블록 10줄
+    chunks = chunk_by_speaker_boundaries(lines, _SPK, base=10, extend=5)
+    assert chunks == [(0, 10), (10, 20), (20, 30), (30, 40)]
+
+
+def test_scene_header_is_also_boundary():
+    scene = re.compile(r"^#\d+\.")
+    lines = [f"cont{i}" for i in range(20)]
+    lines[11] = "#2. 교정"
+    chunks = chunk_by_speaker_boundaries(lines, _SPK, scene, base=10, extend=5)
+    assert chunks[0] == (0, 11)
+
+
+def test_boundary_at_exactly_extend_is_found():
+    # 경계가 base+extend 지점에 정확히 있을 때도 찾아야 한다(포함 범위)
+    lines = [f"cont{i}" for i in range(30)]
+    lines[0] = "S0 시작"
+    lines[15] = "S1 다음"  # base=10, extend=5 → base+extend=15
+    chunks = chunk_by_speaker_boundaries(lines, _SPK, base=10, extend=5)
+    assert chunks[0] == (0, 15)
+
+
+from utils.openai_extract import analyze_pattern, _pattern_prompt_block
+
+
+class _PatternFakeCompletions:
+    def __init__(self, result=None, raise_exc=False):
+        self.result = result
+        self.raise_exc = raise_exc
+        self.calls = []
+
+    def parse(self, *, model, messages, response_format, **kwargs):
+        assert "temperature" not in kwargs  # gpt-5.4 제약: temperature 전달 금지
+        self.calls.append({"messages": messages, "response_format": response_format})
+        if self.raise_exc:
+            raise RuntimeError("boom")
+
+        class _Msg:
+            def __init__(self, p): self.parsed = p
+        class _Choice:
+            def __init__(self, p): self.message = _Msg(p)
+        class _Resp:
+            def __init__(self, p): self.choices = [_Choice(p)]
+        return _Resp(self.result)
+
+
+class _PatternFakeClient:
+    def __init__(self, result=None, raise_exc=False):
+        self.completions = _PatternFakeCompletions(result, raise_exc)
+
+        class _Chat:
+            def __init__(self, c): self.completions = c
+        self.chat = _Chat(self.completions)
+
+
+_GOOD = ScriptPattern(
+    speaker_line_regex=r"^[가-힣A-Za-z0-9/]+\s{3,}",
+    scene_header_regex=r"^#\d+\.",
+    pattern_description="화자명 뒤 공백 3칸 이상 후 대사",
+    speaker_examples=["은비    학교요?", "수미/경진    짠!"],
+)
+
+
+def test_analyze_pattern_returns_parsed_pattern():
+    fake = _PatternFakeClient(result=_GOOD)
+    p = analyze_pattern("k", ["줄1", "줄2"], _client=fake)
+    assert p is _GOOD
+    assert fake.completions.calls[0]["response_format"] is ScriptPattern
+
+
+def test_analyze_pattern_none_on_exception():
+    assert analyze_pattern("k", ["줄"], _client=_PatternFakeClient(raise_exc=True)) is None
+
+
+def test_analyze_pattern_none_on_wrong_parsed_type():
+    fake = _PatternFakeClient(result="문자열임")  # ScriptPattern 아님
+    assert analyze_pattern("k", ["줄"], _client=fake) is None
+
+
+def test_analyze_pattern_sends_sampled_lines():
+    lines = [f"줄{i}" for i in range(300)]
+    fake = _PatternFakeClient(result=_GOOD)
+    analyze_pattern("k", lines, _client=fake)
+    user_msg = fake.completions.calls[0]["messages"][-1]["content"]
+    assert "줄0" in user_msg and "줄299" in user_msg   # 앞/끝 윈도우 포함
+    assert "줄45" not in user_msg                      # 윈도우 밖(45는 40~130 사이 아님) 제외
+
+
+def test_pattern_prompt_block_contents():
+    block = _pattern_prompt_block(_GOOD)
+    assert "화자명 뒤 공백 3칸 이상 후 대사" in block
+    assert "수미/경진    짠!" in block
+    assert _GOOD.speaker_line_regex in block
+    assert "연속 대사" in block

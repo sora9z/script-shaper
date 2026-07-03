@@ -32,10 +32,16 @@ Pipfile.lock
 
 # 특정 디렉토리
 Downloads/
+data/대본샘플들/
+issue/
 
 # PyInstaller directories
 build/
 dist/
 
-# PyInstaller spec file
+# PyInstaller spec file (자동 생성 spec만 제외 — main.spec은 관리되는 빌드 설정)
 *.spec
+!main.spec
+# 로그
+log/
+output/

@@ -28,24 +28,22 @@ jobs:
           pip install pipenv
           pipenv install --dev
 
-      - name: Install pyinstaller
-        run: pipenv install pyinstaller --dev
+      - name: Build app bundle (ScriptShaper.app)
+        run: pipenv run pyinstaller main.spec
 
-      - name: Build executable
-        run: |
-          pipenv run pyinstaller --onefile main.py
+      - name: Package as zip (권한 보존 — chmod 불필요해짐)
+        # ditto 로 만든 zip 은 유닉스 실행 권한을 보존하므로
+        # 압축 해제 후 바로 더블클릭 실행 가능
+        run: ditto -c -k --keepParent dist/ScriptShaper.app dist/ScriptShaper-mac.zip
 
-      - name: Ensure executable permissions
-        run: chmod +x dist/main # 실행 권한 부여
+      - name: Check generated files
+        run: ls -la dist/
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
           name: script-shaper
-          path: dist/main # 업로드할 실행 파일 경로
-
-      - name: Check generated files
-        run: ls -la dist/ # dist 디렉토리 내 파일 확인
+          path: dist/ScriptShaper-mac.zip
 
   release:
     needs: build
@@ -92,6 +90,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./main
-          asset_name: script-shaper
-          asset_content_type: application/octet-stream
+          asset_path: ./ScriptShaper-mac.zip
+          asset_name: ScriptShaper-mac.zip
+          asset_content_type: application/zip
