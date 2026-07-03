@@ -32,6 +32,8 @@ Pipfile.lock
 
 # 특정 디렉토리
 Downloads/
+data/대본샘플들/
+issue/
 
 # PyInstaller directories
 build/

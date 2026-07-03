@@ -54,3 +54,13 @@ PC-Task 4: complete (commits 122d805..1468a85, review clean)
 PC-Task 5: complete (commits 030d4e3..53580f4, review clean; fallback floor + no half-applied state verified)
   - Includes sanctioned fix: analyze_pattern client/sample construction moved inside try (OpenAI(api_key=None) constructor raise confirmed real).
   - Minor (final-review triage): pattern test asserts classify_calls[0] ordering — stable only because fake is sync/fast.
+PC-Task 6: complete (verification-only; no new commits — user commits manually per policy)
+  - Step 1 (docs): pattern-pass sentence was already in CLAUDE.md; then SUPERSEDED by user-requested full CLAUDE.md rewrite (Korean, delegation-first template; pattern pass now described in 프로젝트 개요).
+  - Step 2: full suite 48 passed (plan expected 30 — later review-fix tests added).
+  - Step 3: AI-OFF regression sanity = 675 lines (matches expected).
+  - Step 4 (commit): left to user (no-autonomous-commits rule).
+  - NOTE: CLAUDE.md rewrite dropped the English Core Architecture/gotchas detail per user instruction; cascade spec remains in README "대사 인식 조건" + code.
+PC-BRANCH COMPLETE — pattern-aware chunking plan fully executed.
+PC-Task 6: complete (docs edit in WORKING TREE, uncommitted per user rule; 48 passed; AI-OFF regression 675 lines OK)
+USER RULE (2026-07-02): 커밋 금지 — 사용자가 마지막에 확인 후 직접 커밋. 현 상태 유지(원격 포함), squash 여부도 사용자 결정.
+FINAL REVIEW (pattern chunking): READY-WITH-NITS → N1(테스트 경쟁조건)·N2(스펙 문구)·N3(temperature 가드) 워킹트리에서 수정 완료, 커밋은 사용자 몫. N4/N5는 스펙상 수용 리스크.
