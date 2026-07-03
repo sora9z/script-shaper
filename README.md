@@ -35,16 +35,11 @@ ScriptShaper : 자막제작자를 위한 대본 변환 프로젝트
 - AI 사용 여부 체크
 
   - AI 사용시 시간이 다소 소요될 수 있습니다.
-  - AI 사용시 Download 폴더에 settings.json 파일 안에 openai api key 를 입력해야 합니다.
+  - AI 사용시 OpenAI API 키가 필요합니다 — `설정` 버튼을 눌러 키를 입력하면 저장됩니다.
 
-    ```json
-    {
-      "openai_api_key": "your_openai_api_key"
-    }
-    ```
-
-    - 만약 없다면 import시 key 입력 창이 뜹니다.
-    - 입력을 하면 Downloads 폴더에 settings.json파일이 함께 생성됩니다.
+    - 키는 `~/Library/Application Support/ScriptShaper/settings.json` 에 저장됩니다.
+    - 예전 버전(`~/Downloads/settings.json`)에 키가 있다면 처음 사용할 때 자동으로 새 위치로 옮겨집니다.
+    - 키를 등록하지 않았다면 import 시 키 입력 창이 뜹니다.
 
 - 파일 임포트 : `파일 임포트` 버튼을 통해 파일 임포트
 - 저장 위치는 Downloads 폴더에 저장됩니다.
@@ -60,7 +55,7 @@ pipenv run python convert_cli.py "경로/대본.docx" --ai        # AI 분류 �
 pipenv run python convert_cli.py "경로/대본.docx" --ai --split  # AI 추출 + 20자 분할
 ```
 
-AI 옵션은 `~/Downloads/settings.json` 의 `openai_api_key` 또는 `OPENAI_API_KEY` 환경변수를 사용합니다.
+AI 옵션은 `~/Library/Application Support/ScriptShaper/settings.json` 의 `openai_api_key` 또는 `OPENAI_API_KEY` 환경변수(.env 지원)를 사용합니다. `--out <폴더>` 로 저장 위치를 지정할 수 있습니다(기본 `~/Downloads`).
 
 ## 대사 인식 조건
 
