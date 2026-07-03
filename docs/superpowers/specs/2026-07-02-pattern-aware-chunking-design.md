@@ -51,7 +51,15 @@ class ScriptPattern(BaseModel):
 앞/중간/끝 3개 윈도우. 문서가 `n_windows*window`보다 짧으면 전체 반환(중복 없음). 순수 함수.
 
 ### 3. `analyze_pattern(api_key, lines, model=CLASSIFY_MODEL, *, _client=None) -> Optional[ScriptPattern]`
-`sample_windows` 결과를 붙여 1회 structured-output 호출(`response_format=ScriptPattern`, temperature 미전달). 프롬프트 요지: "이 대본 샘플에서 화자줄(대사 시작 줄)의 표기 형식을 찾아라. regex는 ^ 앵커, 화자명에 `/`·숫자·`(E)`류 표기가 올 수 있음을 고려. 지문/씬헤더와 구별되는 형식적 특징을 설명하라." 예외/파싱 실패 → `None` + 로그.
+`sample_windows` 결과를 붙여 1회 structured-output 호출(`response_format=ScriptPattern`, temperature 미전달). 예외/파싱 실패 → `None` + 로그.
+
+**프롬프트 요구사항 (2026-07-02 코퍼스 분석 반영 — `docs/analysis/2026-07-02-대본샘플-형식분석.md`):**
+- 목표는 **화자줄 regex 하나** — 지문(내레이션) regex는 요구하지 않음(형식으로 구분 불가, 분류기 몫).
+- 구분자 3형 명시: 콜론형 / 공백·탭형 / **붙음형**(`은수(N)대사` — 구분자 없음).
+- **화자줄 없는 문서**(자막 리스트/SRT)면 빈 regex 반환 지시 — 순번·타임코드·컷번호는 화자줄이 아님을 명시. 빈 regex는 `validate_pattern`이 거부 → 전면 폴백 (사용자 확정: 화자명 없으면 패턴 기능 불필요).
+- 씬헤더-인명 충돌 경고 (`은수 집, 주방 (D)`는 화자줄이 아님).
+- 화자명 문자 집합 확장: 숫자 접미·콤마 다중·`/`·언더스코어. 태그 `(E)(N)(F)(O.L)` 붙음/띄움 모두.
+- `speaker_examples`는 실존 줄만, 노이즈(페이지 헤더 파일명 등) 금지. 매치율 5~60% 검산 힌트 포함.
 
 ### 4. `validate_pattern(pattern, lines) -> Optional[re.Pattern]`
 - regex 문자열 길이 ≤ 200, `re.compile` 성공해야 함 (`re.error` → None).
@@ -60,7 +68,9 @@ class ScriptPattern(BaseModel):
 - `scene_header_regex`도 동일하게 컴파일 시도하되 실패 시 그것만 버림(전체 폴백 아님).
 
 ### 5. `chunk_by_speaker_boundaries(lines, speaker_re, scene_re=None, base=CLASSIFY_CHUNK_LINES, extend=30) -> list[tuple[int,int]]`
-- `end = start + base`에서 시작해 `min(end+extend, n)`까지 스캔, **처음 만나는 화자줄/씬헤더의 직전**을 경계로 확정(그 줄부터 다음 청크).
+
+**(2026-07-02 추가) 경계 판정은 union 사용:** `classify_lines`는 학습 regex를 그대로 쓰지 않고 `_boundary_union(speaker_re)` — 학습 regex + baseline `SPEAKER_DIALOGUE_REGEX_LIST`(콜론형·3+공백형)의 alternation — 을 전달한다. 경계 오탐(이른 절단)/미탐(50줄 폴백)은 비용이 낮아 넓은 판정이 안전. 단 **매치율 검증은 학습 regex 단독** — baseline 콜론형은 SRT 타임코드까지 무는 과잉 패턴임이 실증되어 검증에 섞으면 학습 실패가 가려진다.
+- `end = start + base`에서 시작해 `end+extend` 지점까지(**포함**, 상한 `n`) 스캔, **처음 만나는 화자줄/씬헤더의 직전**을 경계로 확정(그 줄부터 다음 청크).
 - 범위 내 경계 없으면 `end` 그대로(현행 50줄과 동일 — 80줄로 늘려봤자 블록 중간이긴 마찬가지).
 - 반환은 `[start, end)` 목록, 전 줄 커버·중복 없음. 순수 함수.
 

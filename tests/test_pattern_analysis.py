@@ -66,6 +66,21 @@ def test_validate_pattern_rejects_uncompilable():
     assert validate_pattern(_mk(r"["), _CORPUS) == (None, None)
 
 
+def test_validate_pattern_rejects_empty_regex():
+    # 화자줄이 없는 문서(SRT/자막 리스트): 모델이 빈 regex 반환 → 전면 폴백
+    assert validate_pattern(_mk(""), _CORPUS) == (None, None)
+
+
+def test_boundary_union_matches_learned_and_baseline_forms():
+    from utils.openai_extract import _boundary_union
+    learned = re.compile(r"^이름\d+\s{3,}")
+    u = _boundary_union(learned)
+    assert u.match("이름3    대사")          # 학습(문서별) regex
+    assert u.match("민수: 안녕")             # baseline 콜론형
+    assert u.match("은비   놔!")             # baseline 3+공백형
+    assert not u.match("평화로운 등굣길 풍경")  # 지문은 경계 아님
+
+
 def test_validate_pattern_rejects_overmatching():
     assert validate_pattern(_mk(r"^.*"), _CORPUS) == (None, None)  # 비율 1.0 > 0.60
 
@@ -161,6 +176,7 @@ class _PatternFakeCompletions:
         self.calls = []
 
     def parse(self, *, model, messages, response_format, **kwargs):
+        assert "temperature" not in kwargs  # gpt-5.4 제약: temperature 전달 금지
         self.calls.append({"messages": messages, "response_format": response_format})
         if self.raise_exc:
             raise RuntimeError("boom")

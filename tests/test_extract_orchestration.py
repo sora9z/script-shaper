@@ -10,6 +10,7 @@ class _FakeCompletions:
         self.drop_ids = drop_ids or set()
 
     def parse(self, *, model, messages, response_format, **kwargs):
+        assert "temperature" not in kwargs  # gpt-5.4 제약: temperature 전달 금지
         if response_format is not Classification:
             # 패턴 분석 요청: 기본 fake는 지원 안 함 → analyze_pattern이 None 폴백
             raise RuntimeError("pattern analysis unsupported by this fake")
@@ -67,14 +68,14 @@ def test_extract_dialogue_ai_falls_back_to_regex_for_none_ids():
         lines, "x.docx", "k",
         _client=_FakeClient(_rule_all_dialogue, drop_ids={0}),
     )
-    assert "안녕하세요." in out          # 폴백으로 살아남음
-    assert "학교요?" in out
+    assert "안녕하세요." in out          # 폴백으로 살아남음 (정규화 후 줄끝 마침표)
+    assert "학교요." in out              # '?'는 정규화로 제거됨
 
 
 def test_extract_dialogue_ai_xlsx_bypass_calls_no_client():
     sentinel = object()  # client가 쓰이면 AttributeError로 터짐
     out = extract_dialogue_ai(["셀1 대사", "셀2 대사"], "data.xlsx", "k", _client=sentinel)
-    assert out == "셀1 대사\n셀2 대사"
+    assert out == "셀1 대사.\n셀2 대사."  # 정규화로 줄끝 마침표
 
 
 def test_fallback_strips_speaker_prefix_for_dropped_line():
@@ -107,6 +108,7 @@ class _PatternAwareFake:
 
         class _Completions:
             def parse(self, *, model, messages, response_format, **kwargs):
+                assert "temperature" not in kwargs  # gpt-5.4 제약: temperature 전달 금지
                 if response_format is ScriptPattern:
                     parsed = outer.pattern
                 else:
@@ -157,16 +159,36 @@ def test_pattern_path_injects_prompt_and_aligns_first_chunk():
     fake = _PatternAwareFake(_DOC_PATTERN, _rule_all_dialogue)
     out = extract_dialogue_ai(lines, "x.docx", "k", _client=fake)
 
-    # 프롬프트 주입 확인
-    system, ids = fake.classify_calls[0]
+    # 프롬프트 주입 확인 (병렬 실행이라 완료 순서 비보장 → id 0을 포함한 호출을 찾음)
+    system, ids = next((s, i) for s, i in fake.classify_calls if 0 in i)
     assert "[이 문서의 확인된 패턴]" in system
     assert "이름0    대사0!" in system
 
     # 경계 정렬 확인: base=50 → idx50은 연속줄(50%4==2) → idx52(화자줄)까지 연장
     assert ids == list(range(0, 52))
 
-    # 추출 결과가 여전히 원문 slice인지(무변형) 확인
-    assert "대사0!" in out and "이어지는 대사 29-2" in out
+    # 대사 본문이 살아있는지 확인 (정규화로 '!'는 제거, 줄끝 마침표)
+    assert "대사0." in out and "이어지는 대사 29-2." in out
+
+
+def test_classify_chunking_unions_baseline_with_learned():
+    # 콜론형 화자줄 문서 + (콜론형을 못 잡는) 학습 regex → baseline union이 경계를 잡아야 한다
+    import re as _re
+    lines = []
+    for i in range(30):
+        lines.append(f"이름{i}: 대사{i}!")                       # 콜론형 화자줄 (idx 0,4,8,...)
+        lines += [f"이어지는 대사 {i}-{j}" for j in range(3)]
+    pat = ScriptPattern(
+        speaker_line_regex=r"^붙음형만[0-9]+",   # 이 문서의 콜론줄과 매치 안 됨
+        pattern_description="d",
+        speaker_examples=["x"],
+    )
+    fake = _PatternAwareFake(pat, _rule_all_dialogue)
+    classify_lines("k", lines, _client=fake,
+                   pattern=pat, speaker_re=_re.compile(pat.speaker_line_regex))
+    system, ids = next((s, i) for s, i in fake.classify_calls if 0 in i)
+    # base=50 → idx50은 연속줄 → baseline 콜론형이 idx52(이름13:)를 경계로 인식
+    assert ids == list(range(0, 52))
 
 
 def test_pattern_failure_falls_back_to_fixed_chunking():
@@ -179,6 +201,6 @@ def test_pattern_failure_falls_back_to_fixed_chunking():
     lines = _speaker_doc()
     fake = _PatternAwareFake(bad, _rule_all_dialogue)
     extract_dialogue_ai(lines, "x.docx", "k", _client=fake)
-    system, ids = fake.classify_calls[0]
+    system, ids = next((s, i) for s, i in fake.classify_calls if 0 in i)
     assert "[이 문서의 확인된 패턴]" not in system
     assert ids == list(range(0, 50))  # 현행 고정 50줄

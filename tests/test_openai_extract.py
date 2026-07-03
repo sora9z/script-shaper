@@ -100,6 +100,33 @@ def test_assemble_drops_unlabeled_lines():
     assert assemble_dialogue(lines, labels) == "대사요"
 
 
+# ---------- normalize_dialogue (answer 스타일: 기호 제거 + 줄끝 마침표) ----------
+
+def test_normalize_strips_question_and_exclamation():
+    from utils.openai_extract import normalize_dialogue
+    assert normalize_dialogue("학교요? 가기 싫은데 안 가면 불안해요.") == "학교요 가기 싫은데 안 가면 불안해요."
+
+
+def test_normalize_strips_commas_and_bang():
+    from utils.openai_extract import normalize_dialogue
+    assert normalize_dialogue("놔, 이거 놔, 이거 놔!") == "놔 이거 놔 이거 놔."
+
+
+def test_normalize_collapses_ellipses_and_inner_periods():
+    from utils.openai_extract import normalize_dialogue
+    assert normalize_dialogue("음... 학교에서 제일 싫어하는 시간은..... 쉬는 시간?") == "음 학교에서 제일 싫어하는 시간은 쉬는 시간."
+
+
+def test_normalize_strips_quotes():
+    from utils.openai_extract import normalize_dialogue
+    assert normalize_dialogue("“어, 선생님!”") == "어 선생님."
+
+
+def test_normalize_multiline_and_drops_empty():
+    from utils.openai_extract import normalize_dialogue
+    assert normalize_dialogue("첫 대사!\n...\n둘째 대사?") == "첫 대사.\n둘째 대사."
+
+
 # ---------- fixture anchors (실제 docx 라인 형태 고정) ----------
 
 @pytest.mark.skipif(not os.path.exists(FIXTURE), reason="원본 대본 fixture 없음(로컬 전용)")
