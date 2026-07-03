@@ -5,8 +5,11 @@
   pipenv run python convert_cli.py "경로/파일.docx" --ai --split  # AI 추출 + 20자 분할
   pipenv run python convert_cli.py "경로/파일.docx" --ai --out issue/20260630  # 저장 폴더 지정
 """
+import logging
 import os
 import sys
+
+logging.basicConfig(format="%(levelname)s %(message)s", level=logging.INFO)  # CLI는 콘솔로
 
 from utils.import_file_to_text import import_file_to_text
 from utils.extract_speaker_and_dialogue import extract_speaker_and_dialogue

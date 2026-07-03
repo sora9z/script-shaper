@@ -1,3 +1,5 @@
+import logging
+
 from utils.file_reader_list import read_file
 
 """
@@ -9,14 +11,13 @@ import_file_to_text 함수는 주어진 파일 경로(selected_file_path)의 파
 
 
 def import_file_to_text(selected_file_path):
-    try:
-        if selected_file_path:
-            text_data = read_file(selected_file_path)
-            print(f"Importing file: {selected_file_path}")
-            return text_data
-        else:
-            print("No file selected")
-            return None
-    except Exception as e:
-        print(f"Error in import_file_to_text: {e}")
-        raise e
+    if not selected_file_path:
+        logging.warning("import_file_to_text: 선택된 파일 없음")
+        return None
+    text_data = read_file(selected_file_path)
+    logging.info(
+        "파일 임포트: %s (%d줄)",
+        selected_file_path,
+        len(text_data) if text_data else 0,
+    )
+    return text_data

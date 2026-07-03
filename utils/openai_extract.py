@@ -1,5 +1,6 @@
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import logging
 from typing import Literal, Optional
 
 from openai import OpenAI
@@ -218,9 +219,13 @@ def analyze_pattern(api_key, lines, model=CLASSIFY_MODEL, *, _client=None):
             response_format=ScriptPattern,
         )
         parsed = resp.choices[0].message.parsed
-        return parsed if isinstance(parsed, ScriptPattern) else None
+        if not isinstance(parsed, ScriptPattern):
+            logging.warning("패턴 분석: 응답 형식 불일치 → 고정 청킹으로 진행")
+            return None
+        logging.info("패턴 분석 완료: regex=%r", parsed.speaker_line_regex)
+        return parsed
     except Exception as e:
-        print(f"패턴 분석 실패(현행 방식으로 진행): {e}")
+        logging.warning("패턴 분석 실패(고정 청킹으로 진행): %s", e)
         return None
 
 
@@ -282,6 +287,7 @@ def classify_lines(api_key, lines, model=CLASSIFY_MODEL, *, _client=None,
         system_prompt = _SYSTEM_PROMPT + _pattern_prompt_block(pattern)
         # 경계 판정은 학습 regex + baseline 화자 패턴의 union으로 (넓게, 안전)
         ranges = chunk_by_speaker_boundaries(lines, _boundary_union(speaker_re), scene_re)
+        logging.info("분류 시작: %d줄 → %d청크 (패턴 경계 정렬)", n, len(ranges))
     else:
         ranges = []
         start = 0
@@ -309,7 +315,10 @@ def classify_lines(api_key, lines, model=CLASSIFY_MODEL, *, _client=None,
                     if lab.id in valid_ids:
                         labels[lab.id] = lab
             except Exception as e:  # 청크 실패 → 해당 id들은 None으로 남겨 폴백
-                print(f"청크 분류 실패({min(valid_ids)}~{max(valid_ids)}): {e}")
+                logging.warning(
+                    "청크 분류 실패(줄 %d~%d): %s",
+                    min(valid_ids), max(valid_ids), e,
+                )
     return labels
 
 
@@ -325,15 +334,18 @@ def extract_dialogue_ai(text_list, file_path, api_key, model=CLASSIFY_MODEL, *, 
     if pattern is not None:
         speaker_re, scene_re = validate_pattern(pattern, text_list)
         if speaker_re is None:
+            logging.warning("패턴 검증 탈락(빈/과잉/컴파일 불가 regex) → 고정 청킹으로 진행")
             pattern = None
 
     labels = classify_lines(api_key, text_list, model, _client=_client,
                             pattern=pattern, speaker_re=speaker_re, scene_re=scene_re)
     lines = list(text_list)
     # 미분류 id는 기존 regex 캐스케이드로 폴백
+    fallback_count = 0
     for i, lab in enumerate(labels):
         if lab is None:
             # 주의: 폴백은 기존 규칙 경로라, ~다로 끝나는 지문이 다시 대사로 샐 수 있음(모델 미분류 시 한정)
+            fallback_count += 1
             hit = extract_speaker_and_dialogue([text_list[i]], file_path)
             if hit:
                 # 폴백: 기존 규칙 경로와 동일하게 화자명·지문 제거
@@ -341,5 +353,8 @@ def extract_dialogue_ai(text_list, file_path, api_key, model=CLASSIFY_MODEL, *, 
                 labels[i] = LineLabel(id=i, type="dialogue", speaker=None)
             else:
                 labels[i] = LineLabel(id=i, type="other", speaker=None)
+    if fallback_count:
+        # 이 수치가 크면 결과 품질 저하(지문 잔존 등)의 원인일 수 있음
+        logging.warning("모델 미분류 %d/%d줄 → regex 폴백 처리됨", fallback_count, len(text_list))
     # 최종 정규화: 기호 제거 + 줄끝 마침표 (정답 자막 스타일, 결정적 규칙)
     return normalize_dialogue(assemble_dialogue(lines, labels))

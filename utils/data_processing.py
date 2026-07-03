@@ -43,7 +43,7 @@ def data_processing(text_data: str) -> list[str]:
         # text_data = re.sub(
         #     r"([a-zA-Z0-9가-힣])(?![.,])\s*$", r"\1.", text_data, flags=re.MULTILINE
         # )
-    except Exception as e:
-        print(f"Error in data_processing: {e}")
-        raise e
+    except Exception:
+        # 상위 경계(convert_file 등)에서 traceback 포함 로깅됨
+        raise
     return text_data

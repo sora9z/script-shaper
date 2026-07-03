@@ -101,6 +101,6 @@ def extract_speaker_and_dialogue(text_list, file_path) -> list[str]:
                     break
 
         return extracted_dialogues
-    except Exception as e:
-        print(f"Error in extract_speaker_and_dialogue: {e}")
-        raise e
+    except Exception:
+        # 상위 경계(convert_file 등)에서 traceback 포함 로깅됨
+        raise
