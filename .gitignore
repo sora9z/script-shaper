@@ -39,8 +39,9 @@ issue/
 build/
 dist/
 
-# PyInstaller spec file
+# PyInstaller spec file (자동 생성 spec만 제외 — main.spec은 관리되는 빌드 설정)
 *.spec
+!main.spec
 # 로그
 log/
 output/

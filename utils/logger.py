@@ -20,7 +20,14 @@ _file_handler = None
 
 def _base_dir():
     if getattr(sys, "frozen", False):  # PyInstaller 바이너리
-        return os.path.dirname(sys.executable)
+        exe_dir = os.path.dirname(sys.executable)
+        # .app 번들(…/ScriptShaper.app/Contents/MacOS)이면 번들 내부가 아니라
+        # 번들이 놓인 폴더에 log를 만든다 (번들 내부 쓰기는 서명 훼손·가시성 문제)
+        parts = os.path.normpath(exe_dir).split(os.sep)
+        if len(parts) >= 3 and parts[-1] == "MacOS" and parts[-2] == "Contents" \
+                and parts[-3].endswith(".app"):
+            return os.sep.join(parts[:-3])
+        return exe_dir
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 프로젝트 루트
 
 

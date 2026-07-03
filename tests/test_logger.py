@@ -42,6 +42,23 @@ def test_exception_logged_with_traceback(tmp_path):
     assert "Traceback" in content
 
 
+def test_base_dir_for_app_bundle_is_next_to_bundle(tmp_path, monkeypatch):
+    import sys
+    exe = tmp_path / "Apps" / "ScriptShaper.app" / "Contents" / "MacOS" / "ScriptShaper"
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(exe))
+    # .app 번들 내부가 아니라 번들이 놓인 폴더에 log를 만들어야 한다
+    assert logger_mod._base_dir() == str(tmp_path / "Apps")
+
+
+def test_base_dir_for_plain_binary_is_exe_dir(tmp_path, monkeypatch):
+    import sys
+    exe = tmp_path / "bin" / "script-shaper"
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "executable", str(exe))
+    assert logger_mod._base_dir() == str(tmp_path / "bin")
+
+
 def test_fallback_when_base_not_writable(tmp_path, monkeypatch):
     ro = tmp_path / "readonly"
     ro.mkdir()
